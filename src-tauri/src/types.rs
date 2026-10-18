@@ -379,6 +379,8 @@ pub(crate) struct RemoteBackendTarget {
 pub(crate) struct AppSettings {
     #[serde(default, rename = "codexBin")]
     pub(crate) codex_bin: Option<String>,
+    #[serde(default, rename = "codexHome")]
+    pub(crate) codex_home: Option<String>,
     #[serde(default, rename = "codexArgs")]
     pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "backendMode")]
@@ -1124,6 +1126,7 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             codex_bin: None,
+            codex_home: None,
             codex_args: None,
             backend_mode: default_backend_mode(),
             remote_backend_provider: RemoteBackendProvider::Tcp,
@@ -1211,9 +1214,21 @@ mod tests {
     };
 
     #[test]
+    fn app_settings_codex_home_round_trips_without_changing_legacy_defaults() {
+        let settings: AppSettings =
+            serde_json::from_str(r#"{"codexHome":"~/.codex-custom","codexBin":"/bin/codex"}"#)
+                .expect("settings deserialize");
+        assert_eq!(settings.codex_home.as_deref(), Some("~/.codex-custom"));
+        let saved = serde_json::to_value(&settings).expect("serialize settings");
+        assert_eq!(saved["codexHome"], "~/.codex-custom");
+        assert!(AppSettings::default().codex_home.is_none());
+    }
+
+    #[test]
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(settings.codex_bin.is_none());
+        assert!(settings.codex_home.is_none());
         let expected_backend_mode = if cfg!(target_os = "ios") {
             BackendMode::Remote
         } else {

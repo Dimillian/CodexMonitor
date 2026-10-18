@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::backend::app_server::WorkspaceSession;
 use crate::codex::args::resolve_workspace_codex_args;
-use crate::codex::home::resolve_workspace_codex_home;
+use crate::codex::home::{resolve_codex_home, resolve_workspace_codex_home};
 use crate::shared::process_core::kill_child_process_tree;
 use crate::shared::{git_core, worktree_core};
 use crate::storage::write_workspaces;
@@ -54,18 +54,18 @@ where
     };
 
     let _spawn_guard = workspace_session_spawn_lock().lock().await;
+    let (default_bin, codex_args, codex_home) = {
+        let settings = app_settings.lock().await;
+        (
+            settings.codex_bin.clone(),
+            resolve_workspace_codex_args(&entry, None, Some(&settings)),
+            Some(resolve_workspace_codex_home(&entry, None, &settings)?),
+        )
+    };
     let existing_session = take_live_shared_session(sessions).await;
     let (session, spawned_new_session) = if let Some(existing_session) = existing_session {
         (existing_session, false)
     } else {
-        let (default_bin, codex_args) = {
-            let settings = app_settings.lock().await;
-            (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, None, Some(&settings)),
-            )
-        };
-        let codex_home = resolve_workspace_codex_home(&entry, None);
         (
             spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?,
             true,
@@ -120,6 +120,11 @@ where
     F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
+    {
+        let settings = app_settings.lock().await;
+        resolve_codex_home(settings.codex_home.as_deref())?;
+    }
+
     let copy_name = copy_name.trim().to_string();
     if copy_name.is_empty() {
         return Err("Copy name is required.".to_string());
@@ -205,18 +210,30 @@ where
     };
 
     let _spawn_guard = workspace_session_spawn_lock().lock().await;
+    let (default_bin, codex_args, codex_home) = {
+        let settings = app_settings.lock().await;
+        (
+            settings.codex_bin.clone(),
+            resolve_workspace_codex_args(&entry, None, Some(&settings)),
+            resolve_workspace_codex_home(&entry, None, &settings).map(Some),
+        )
+    };
+    let codex_home = match codex_home {
+        Ok(home) => home,
+        Err(error) => {
+            if let Err(cleanup_error) = tokio::fs::remove_dir_all(&destination_path).await {
+                return Err(format!(
+                    "{error}. Could not remove the newly cloned directory {}: {cleanup_error}",
+                    destination_path.display(),
+                ));
+            }
+            return Err(error);
+        }
+    };
     let existing_session = take_live_shared_session(sessions).await;
     let (session, spawned_new_session) = if let Some(existing_session) = existing_session {
         (existing_session, false)
     } else {
-        let (default_bin, codex_args) = {
-            let settings = app_settings.lock().await;
-            (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, None, Some(&settings)),
-            )
-        };
-        let codex_home = resolve_workspace_codex_home(&entry, None);
         match spawn_session(entry.clone(), default_bin, codex_args, codex_home).await {
             Ok(session) => (session, true),
             Err(error) => {
@@ -312,6 +329,11 @@ where
     F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
+    {
+        let settings = app_settings.lock().await;
+        resolve_codex_home(settings.codex_home.as_deref())?;
+    }
+
     let url = url.trim().to_string();
     if url.is_empty() {
         return Err("Remote Git URL is required.".to_string());
@@ -370,18 +392,30 @@ where
     };
 
     let _spawn_guard = workspace_session_spawn_lock().lock().await;
+    let (default_bin, codex_args, codex_home) = {
+        let settings = app_settings.lock().await;
+        (
+            settings.codex_bin.clone(),
+            resolve_workspace_codex_args(&entry, None, Some(&settings)),
+            resolve_workspace_codex_home(&entry, None, &settings).map(Some),
+        )
+    };
+    let codex_home = match codex_home {
+        Ok(home) => home,
+        Err(error) => {
+            if let Err(cleanup_error) = tokio::fs::remove_dir_all(&clone_path).await {
+                return Err(format!(
+                    "{error}. Could not remove the newly cloned directory {}: {cleanup_error}",
+                    clone_path.display(),
+                ));
+            }
+            return Err(error);
+        }
+    };
     let existing_session = take_live_shared_session(sessions).await;
     let (session, spawned_new_session) = if let Some(existing_session) = existing_session {
         (existing_session, false)
     } else {
-        let (default_bin, codex_args) = {
-            let settings = app_settings.lock().await;
-            (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, None, Some(&settings)),
-            )
-        };
-        let codex_home = resolve_workspace_codex_home(&entry, None);
         match spawn_session(entry.clone(), default_bin, codex_args, codex_home).await {
             Ok(session) => (session, true),
             Err(error) => {
@@ -620,7 +654,36 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{default_repo_name_from_url, validate_target_folder_name};
+    use super::*;
+
+    #[test]
+    fn unavailable_home_prevents_clone_destination_creation() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let root =
+                std::env::temp_dir().join(format!("codex-clone-preflight-{}", Uuid::new_v4()));
+            let copies = root.join("copies");
+            let workspaces = Mutex::new(HashMap::new());
+            let sessions = Mutex::new(HashMap::new());
+            let settings = Mutex::new(AppSettings {
+                codex_home: Some(root.join("missing-home").to_string_lossy().into_owned()),
+                ..AppSettings::default()
+            });
+            let result = add_clone_core(
+                "source".to_string(),
+                "clone".to_string(),
+                copies.to_string_lossy().into_owned(),
+                &workspaces,
+                &sessions,
+                &settings,
+                &root.join("settings.json"),
+                |_, _, _, _| async { Err("must never spawn".to_string()) },
+            )
+            .await;
+            assert!(result.unwrap_err().contains("unavailable"));
+            assert!(!copies.exists());
+            assert!(!root.exists());
+        });
+    }
 
     #[test]
     fn derives_repo_name_from_https_url() {

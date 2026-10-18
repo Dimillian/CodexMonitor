@@ -7,9 +7,10 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 
-use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_home};
+use crate::codex::home::{resolve_codex_home, resolve_workspace_codex_home};
 use crate::types::{
-    LocalUsageDay, LocalUsageModel, LocalUsageSnapshot, LocalUsageTotals, WorkspaceEntry,
+    AppSettings, LocalUsageDay, LocalUsageModel, LocalUsageSnapshot, LocalUsageTotals,
+    WorkspaceEntry,
 };
 
 #[derive(Default, Clone, Copy)]
@@ -31,6 +32,7 @@ struct UsageTotals {
 const MAX_ACTIVITY_GAP_MS: i64 = 2 * 60 * 1000;
 
 pub(crate) async fn local_usage_snapshot_core(
+    app_settings: &AppSettings,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     days: Option<u32>,
     workspace_path: Option<String>,
@@ -46,7 +48,7 @@ pub(crate) async fn local_usage_snapshot_core(
     });
     let sessions_roots = {
         let workspaces = workspaces.lock().await;
-        resolve_sessions_roots(&workspaces, workspace_path.as_deref())
+        resolve_sessions_roots(app_settings, &workspaces, workspace_path.as_deref())?
     };
     let snapshot = tokio::task::spawn_blocking(move || {
         scan_local_usage(days, workspace_path.as_deref(), &sessions_roots)
@@ -519,70 +521,57 @@ fn make_day_keys(days: u32) -> Vec<String> {
         .collect()
 }
 
-fn resolve_codex_sessions_root(codex_home_override: Option<PathBuf>) -> Option<PathBuf> {
-    codex_home_override
-        .or_else(resolve_default_codex_home)
-        .map(|home| home.join("sessions"))
-}
-
 fn resolve_sessions_roots(
+    app_settings: &AppSettings,
     workspaces: &HashMap<String, WorkspaceEntry>,
     workspace_path: Option<&Path>,
-) -> Vec<PathBuf> {
+) -> Result<Vec<PathBuf>, String> {
     if let Some(workspace_path) = workspace_path {
-        let codex_home_override =
-            resolve_workspace_codex_home_for_path(workspaces, Some(workspace_path));
-        return resolve_codex_sessions_root(codex_home_override)
-            .into_iter()
-            .collect();
+        let codex_home =
+            resolve_workspace_codex_home_for_path(app_settings, workspaces, workspace_path)?;
+        return Ok(vec![codex_home.join("sessions")]);
     }
 
     let mut roots = Vec::new();
     let mut seen = HashSet::new();
-
-    if let Some(root) = resolve_codex_sessions_root(None) {
-        if seen.insert(root.clone()) {
-            roots.push(root);
-        }
-    }
+    let root = resolve_codex_home(app_settings.codex_home.as_deref())?.join("sessions");
+    seen.insert(root.clone());
+    roots.push(root);
 
     for entry in workspaces.values() {
         let parent_entry = entry
             .parent_id
             .as_ref()
             .and_then(|parent_id| workspaces.get(parent_id));
-        let Some(codex_home) = resolve_workspace_codex_home(entry, parent_entry) else {
-            continue;
-        };
-        if let Some(root) = resolve_codex_sessions_root(Some(codex_home)) {
-            if seen.insert(root.clone()) {
-                roots.push(root);
-            }
+        let root =
+            resolve_workspace_codex_home(entry, parent_entry, app_settings)?.join("sessions");
+        if seen.insert(root.clone()) {
+            roots.push(root);
         }
     }
-
-    roots
+    Ok(roots)
 }
 
 fn resolve_workspace_codex_home_for_path(
-    workspaces: &HashMap<String, crate::types::WorkspaceEntry>,
-    workspace_path: Option<&Path>,
-) -> Option<PathBuf> {
-    let workspace_path = workspace_path?;
+    app_settings: &AppSettings,
+    workspaces: &HashMap<String, WorkspaceEntry>,
+    workspace_path: &Path,
+) -> Result<PathBuf, String> {
     let entry = workspaces
         .values()
         .filter(|entry| {
             let entry_path = Path::new(&entry.path);
             workspace_path == entry_path || workspace_path.starts_with(entry_path)
         })
-        .max_by_key(|entry| entry.path.len())?;
-
+        .max_by_key(|entry| entry.path.len());
+    let Some(entry) = entry else {
+        return resolve_codex_home(app_settings.codex_home.as_deref());
+    };
     let parent_entry = entry
         .parent_id
         .as_ref()
         .and_then(|parent_id| workspaces.get(parent_id));
-
-    resolve_workspace_codex_home(entry, parent_entry)
+    resolve_workspace_codex_home(entry, parent_entry, app_settings)
 }
 
 fn day_dir_for_key(root: &Path, day_key: &str) -> PathBuf {
@@ -808,7 +797,7 @@ mod tests {
     }
 
     #[test]
-    fn resolve_sessions_roots_uses_single_default_root() {
+    fn resolve_sessions_roots_uses_single_selected_root() {
         let mut workspaces = HashMap::new();
         let entry_a = WorkspaceEntry {
             id: "a".to_string(),
@@ -831,10 +820,31 @@ mod tests {
         workspaces.insert(entry_a.id.clone(), entry_a.clone());
         workspaces.insert(entry_b.id.clone(), entry_b.clone());
 
-        let roots = resolve_sessions_roots(&workspaces, None);
-        let expected = resolve_codex_sessions_root(None)
-            .map(|root| vec![root])
-            .unwrap_or_default();
-        assert_eq!(roots, expected);
+        let home = std::env::temp_dir().join(format!("codexmonitor-home-{}", Uuid::new_v4()));
+        fs::create_dir_all(&home).expect("create home");
+        let settings = AppSettings {
+            codex_home: Some(home.to_string_lossy().into_owned()),
+            ..AppSettings::default()
+        };
+        let roots = resolve_sessions_roots(&settings, &workspaces, None).expect("resolve roots");
+        assert_eq!(
+            roots,
+            vec![fs::canonicalize(&home).unwrap().join("sessions")]
+        );
+        fs::remove_dir_all(home).unwrap();
+    }
+    #[test]
+    fn unavailable_selected_usage_home_never_falls_back() {
+        let home = std::env::temp_dir().join(format!("codexmonitor-missing-{}", Uuid::new_v4()));
+        let settings = AppSettings {
+            codex_home: Some(home.to_string_lossy().into_owned()),
+            ..AppSettings::default()
+        };
+        let workspaces = HashMap::new();
+        assert!(resolve_sessions_roots(&settings, &workspaces, None).is_err());
+        assert!(
+            resolve_sessions_roots(&settings, &workspaces, Some(Path::new("/tmp/project")))
+                .is_err()
+        );
     }
 }

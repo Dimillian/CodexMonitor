@@ -291,9 +291,13 @@ pub(crate) async fn codex_doctor_core(
     codex_bin: Option<String>,
     codex_args: Option<String>,
 ) -> Result<Value, String> {
-    let (default_bin, default_args) = {
+    let (default_bin, default_args, codex_home) = {
         let settings = app_settings.lock().await;
-        (settings.codex_bin.clone(), settings.codex_args.clone())
+        (
+            settings.codex_bin.clone(),
+            settings.codex_args.clone(),
+            crate::codex::home::resolve_codex_home(settings.codex_home.as_deref())?,
+        )
     };
     let resolved = codex_bin
         .clone()
@@ -304,12 +308,13 @@ pub(crate) async fn codex_doctor_core(
         .filter(|value| !value.trim().is_empty())
         .or(default_args);
     let path_env = build_codex_path_env(resolved.as_deref());
-    let version = check_codex_installation(resolved.clone()).await?;
+    let version = check_codex_installation(resolved.clone(), Some(&codex_home)).await?;
     let mut command = build_codex_command_with_bin(
         resolved.clone(),
         resolved_args.as_deref(),
         vec!["app-server".to_string(), "--help".to_string()],
     )?;
+    command.env("CODEX_HOME", &codex_home);
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
     let app_server_ok = match timeout(Duration::from_secs(5), command.output()).await {

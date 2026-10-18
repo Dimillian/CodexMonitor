@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::backend::app_server::WorkspaceSession;
 use crate::codex::args::resolve_workspace_codex_args;
-use crate::codex::home::resolve_workspace_codex_home;
+use crate::codex::home::{resolve_codex_home, resolve_workspace_codex_home};
 use crate::storage::write_workspaces;
 use crate::types::{
     AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings, WorktreeInfo,
@@ -134,6 +134,11 @@ where
         return Err("Cannot create a worktree from another worktree.".to_string());
     }
 
+    {
+        let settings = app_settings.lock().await;
+        resolve_codex_home(settings.codex_home.as_deref())?;
+    }
+
     // Determine worktree root: per-workspace setting > global setting > default
     let worktree_root = if let Some(custom_folder) = &parent_entry.settings.worktrees_folder {
         PathBuf::from(workspace_path_to_string(&PathBuf::from(custom_folder)))
@@ -221,18 +226,35 @@ where
     };
 
     let _spawn_guard = workspace_session_spawn_lock().lock().await;
+    let (default_bin, codex_args, codex_home) = {
+        let settings = app_settings.lock().await;
+        (
+            settings.codex_bin.clone(),
+            resolve_workspace_codex_args(&entry, Some(&parent_entry), Some(&settings)),
+            resolve_workspace_codex_home(&entry, Some(&parent_entry), &settings).map(Some),
+        )
+    };
+    let codex_home = match codex_home {
+        Ok(home) => home,
+        Err(error) => {
+            if let Err(cleanup_error) = run_git_command(
+                &repo_path,
+                &["worktree", "remove", "--force", &worktree_path_string],
+            )
+            .await
+            {
+                return Err(format!(
+                    "{error}. Could not remove the newly created worktree {}: {cleanup_error}",
+                    worktree_path.display(),
+                ));
+            }
+            return Err(error);
+        }
+    };
     let existing_session = take_live_shared_session(sessions).await;
     let session = if let Some(existing_session) = existing_session {
         existing_session
     } else {
-        let (default_bin, codex_args) = {
-            let settings = app_settings.lock().await;
-            (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, Some(&parent_entry), Some(&settings)),
-            )
-        };
-        let codex_home = resolve_workspace_codex_home(&entry, Some(&parent_entry));
         spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?
     };
 

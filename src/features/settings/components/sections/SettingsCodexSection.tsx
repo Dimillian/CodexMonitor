@@ -1,65 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
-import type { Dispatch, SetStateAction } from "react";
-import type {
-  AppSettings,
-  CodexDoctorResult,
-  CodexUpdateResult,
-  ModelOption,
-} from "@/types";
+import type { AppSettings, ModelOption } from "@/types";
 import {
   SettingsSection,
   SettingsToggleRow,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
 import { FileEditorCard } from "@/features/shared/components/FileEditorCard";
-
-type SettingsCodexSectionProps = {
-  appSettings: AppSettings;
-  onUpdateAppSettings: (next: AppSettings) => Promise<void>;
-  defaultModels: ModelOption[];
-  defaultModelsLoading: boolean;
-  defaultModelsError: string | null;
-  defaultModelsConnectedWorkspaceCount: number;
-  onRefreshDefaultModels: () => void;
-  codexPathDraft: string;
-  codexArgsDraft: string;
-  codexDirty: boolean;
-  isSavingSettings: boolean;
-  doctorState: {
-    status: "idle" | "running" | "done";
-    result: CodexDoctorResult | null;
-  };
-  codexUpdateState: {
-    status: "idle" | "running" | "done";
-    result: CodexUpdateResult | null;
-  };
-  globalAgentsMeta: string;
-  globalAgentsError: string | null;
-  globalAgentsContent: string;
-  globalAgentsLoading: boolean;
-  globalAgentsRefreshDisabled: boolean;
-  globalAgentsSaveDisabled: boolean;
-  globalAgentsSaveLabel: string;
-  globalConfigMeta: string;
-  globalConfigError: string | null;
-  globalConfigContent: string;
-  globalConfigLoading: boolean;
-  globalConfigRefreshDisabled: boolean;
-  globalConfigSaveDisabled: boolean;
-  globalConfigSaveLabel: string;
-  onSetCodexPathDraft: Dispatch<SetStateAction<string>>;
-  onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
-  onSetGlobalAgentsContent: (value: string) => void;
-  onSetGlobalConfigContent: (value: string) => void;
-  onBrowseCodex: () => Promise<void>;
-  onSaveCodexSettings: () => Promise<void>;
-  onRunDoctor: () => Promise<void>;
-  onRunCodexUpdate: () => Promise<void>;
-  onRefreshGlobalAgents: () => void;
-  onSaveGlobalAgents: () => void;
-  onRefreshGlobalConfig: () => void;
-  onSaveGlobalConfig: () => void;
-};
+import type { SettingsCodexSectionProps } from "@settings/hooks/useSettingsCodexSection";
 
 const DEFAULT_REASONING_EFFORT = "medium";
 
@@ -115,6 +62,18 @@ export function SettingsCodexSection({
   onRefreshDefaultModels,
   codexPathDraft,
   codexArgsDraft,
+  codexHomeDraft,
+  codexHomeEffectivePath,
+  globalConfigPath,
+  globalAgentsPath,
+  codexHomeSource,
+  codexHomeValidatedPath,
+  codexHomeError,
+  codexHomeValidating,
+  codexSettingsError,
+  onSetCodexHomeDraft,
+  onBrowseCodexHome,
+  onValidateCodexHome,
   codexDirty,
   isSavingSettings,
   doctorState,
@@ -233,6 +192,64 @@ export function SettingsCodexSection({
       subtitle="Configure the Codex CLI used by CodexMonitor and validate the install."
     >
       <div className="settings-field">
+        <label className="settings-field-label" htmlFor="codex-home">
+          Codex Home
+        </label>
+        <div className="settings-field-row">
+          <input
+            id="codex-home"
+            className="settings-input"
+            value={codexHomeDraft}
+            placeholder="Default (CODEX_HOME or ~/.codex)"
+            onChange={(event) => onSetCodexHomeDraft(event.target.value)}
+            disabled={isSavingSettings || appSettings.backendMode === "remote"}
+            spellCheck={false}
+          />
+          <button
+            type="button"
+            className="ghost"
+            disabled={isSavingSettings || appSettings.backendMode === "remote"}
+            onClick={() => { void onBrowseCodexHome(); }}
+          >
+            Browse home
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={isSavingSettings || appSettings.backendMode === "remote"}
+            onClick={() => onSetCodexHomeDraft("")}
+          >
+            Use default
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={codexHomeValidating || isSavingSettings || appSettings.backendMode === "remote"}
+            onClick={() => { void onValidateCodexHome(); }}
+          >
+            {codexHomeValidating ? "Validating…" : "Validate"}
+          </button>
+        </div>
+        <div className="settings-help">
+          An explicit home takes priority over CODEX_HOME. Leave empty to use CODEX_HOME,
+          then ~/.codex. Saving a changed home reloads the app and reconnects workspaces.
+        </div>
+        {appSettings.backendMode === "remote" ? (
+          <div className="settings-help">Codex Home is a local backend setting. Switch to the local backend to change it. Remote configuration files use the connected daemon’s home.</div>
+        ) : (
+          <div className="settings-help" aria-live="polite">
+            Effective home: <code>{codexHomeEffectivePath ?? "Unavailable"}</code>
+            {codexHomeSource ? ` (${codexHomeSource})` : ""}
+          </div>
+        )}
+        {codexHomeValidatedPath && (
+          <div className="settings-help" role="status">
+            Validated selection: <code>{codexHomeValidatedPath}</code>
+          </div>
+        )}
+        {codexHomeError && <div className="settings-agents-error" role="alert">{codexHomeError}</div>}
+      </div>
+      <div className="settings-field">
         <label className="settings-field-label" htmlFor="codex-path">
           Default Codex path
         </label>
@@ -332,6 +349,9 @@ export function SettingsCodexSection({
           </button>
         </div>
 
+        {codexSettingsError && (
+          <div className="settings-agents-error" role="alert">{codexSettingsError}</div>
+        )}
         {doctorState.result && (
           <div className={`settings-doctor ${doctorState.result.ok ? "ok" : "error"}`}>
             <div className="settings-doctor-title">
@@ -537,9 +557,9 @@ export function SettingsCodexSection({
         onRefresh={onRefreshGlobalAgents}
         onSave={onSaveGlobalAgents}
         helpText={
-          <>
-            Stored at <code>~/.codex/AGENTS.md</code>.
-          </>
+          globalAgentsPath ? (
+            <>Stored at <code>{globalAgentsPath}</code>.</>
+          ) : "Codex configuration path is unavailable."
         }
         classNames={{
           container: "settings-field settings-agents",
@@ -568,9 +588,9 @@ export function SettingsCodexSection({
         onRefresh={onRefreshGlobalConfig}
         onSave={onSaveGlobalConfig}
         helpText={
-          <>
-            Stored at <code>~/.codex/config.toml</code>.
-          </>
+          globalConfigPath ? (
+            <>Stored at <code>{globalConfigPath}</code>.</>
+          ) : "Codex configuration path is unavailable."
         }
         classNames={{
           container: "settings-field settings-agents",

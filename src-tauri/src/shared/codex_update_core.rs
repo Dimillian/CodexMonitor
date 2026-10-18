@@ -148,9 +148,13 @@ pub(crate) async fn codex_update_core(
     codex_bin: Option<String>,
     codex_args: Option<String>,
 ) -> Result<Value, String> {
-    let (default_bin, default_args) = {
+    let (default_bin, default_args, codex_home) = {
         let settings = app_settings.lock().await;
-        (settings.codex_bin.clone(), settings.codex_args.clone())
+        (
+            settings.codex_bin.clone(),
+            settings.codex_args.clone(),
+            crate::codex::home::resolve_codex_home(settings.codex_home.as_deref())?,
+        )
     };
     let resolved = codex_bin
         .clone()
@@ -162,7 +166,7 @@ pub(crate) async fn codex_update_core(
         .or(default_args);
     let _ = resolved_args;
 
-    let before_version = check_codex_installation(resolved.clone())
+    let before_version = check_codex_installation(resolved.clone(), Some(&codex_home))
         .await
         .ok()
         .flatten();
@@ -203,7 +207,7 @@ pub(crate) async fn codex_update_core(
     let after_version = if method == "unknown" {
         None
     } else {
-        match check_codex_installation(resolved.clone()).await {
+        match check_codex_installation(resolved.clone(), Some(&codex_home)).await {
             Ok(version) => version,
             Err(err) => {
                 let result = CodexUpdateResult {

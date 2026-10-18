@@ -1,9 +1,9 @@
 import { readGlobalCodexConfigToml, writeGlobalCodexConfigToml } from "@services/tauri";
 import { useFileEditor } from "@/features/shared/hooks/useFileEditor";
 
-export function useGlobalCodexConfigToml() {
+export function useGlobalCodexConfigToml(codexHome?: string | null) {
   return useFileEditor({
-    key: "global-config",
+    key: `global-config:${codexHome ?? "default"}`,
     read: readGlobalCodexConfigToml,
     write: writeGlobalCodexConfigToml,
     readErrorTitle: "Couldn’t load global config.toml",

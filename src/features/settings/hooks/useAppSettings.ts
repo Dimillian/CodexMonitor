@@ -135,6 +135,7 @@ function buildDefaultSettings(): AppSettings {
   };
   return {
     codexBin: null,
+    codexHome: null,
     codexArgs: null,
     backendMode: isMobile ? "remote" : "local",
     remoteBackendProvider: defaultRemote.provider,
@@ -244,6 +245,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     ...settings,
     ...remoteBackendSettings,
     codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
+    codexHome: settings.codexHome?.trim() ? settings.codexHome.trim() : null,
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",

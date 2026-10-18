@@ -4,8 +4,9 @@ use std::io::ErrorKind;
 use std::path::{Component, Path, PathBuf};
 use toml_edit::{value, Document, Item, Table};
 
-use crate::codex::home as codex_home;
+use crate::codex::home;
 use crate::shared::config_toml_core;
+use crate::types::AppSettings;
 
 pub(crate) const DEFAULT_AGENT_MAX_THREADS: u32 = 6;
 pub(crate) const DEFAULT_AGENT_MAX_DEPTH: u32 = 1;
@@ -81,8 +82,10 @@ pub(crate) struct DeleteAgentInput {
     pub delete_managed_file: Option<bool>,
 }
 
-pub(crate) fn get_agents_settings_core() -> Result<AgentsSettingsDto, String> {
-    let codex_home = resolve_codex_home()?;
+pub(crate) fn get_agents_settings_core(
+    app_settings: &AppSettings,
+) -> Result<AgentsSettingsDto, String> {
+    let codex_home = home::resolve_codex_home(app_settings.codex_home.as_deref())?;
     let config_path = codex_home.join("config.toml");
     let config_path_string = config_path
         .to_str()
@@ -106,12 +109,13 @@ pub(crate) fn get_agents_settings_core() -> Result<AgentsSettingsDto, String> {
 }
 
 pub(crate) fn set_agents_core_settings_core(
+    app_settings: &AppSettings,
     input: SetAgentsCoreInput,
 ) -> Result<AgentsSettingsDto, String> {
     validate_max_threads(input.max_threads)?;
     validate_max_depth(input.max_depth)?;
 
-    let codex_home = resolve_codex_home()?;
+    let codex_home = home::resolve_codex_home(app_settings.codex_home.as_deref())?;
     let (_, mut document) = config_toml_core::load_global_config_document(&codex_home)?;
 
     let features = config_toml_core::ensure_table(&mut document, "features")?;
@@ -122,15 +126,18 @@ pub(crate) fn set_agents_core_settings_core(
     agents["max_depth"] = value(input.max_depth as i64);
 
     config_toml_core::persist_global_config_document(&codex_home, &document)?;
-    get_agents_settings_core()
+    get_agents_settings_core(app_settings)
 }
 
-pub(crate) fn create_agent_core(input: CreateAgentInput) -> Result<AgentsSettingsDto, String> {
+pub(crate) fn create_agent_core(
+    app_settings: &AppSettings,
+    input: CreateAgentInput,
+) -> Result<AgentsSettingsDto, String> {
     let name = normalize_agent_name(input.name.as_str())?;
     let description = normalize_optional_string(input.description.as_deref());
     let developer_instructions = normalize_optional_string(input.developer_instructions.as_deref());
 
-    let codex_home = resolve_codex_home()?;
+    let codex_home = home::resolve_codex_home(app_settings.codex_home.as_deref())?;
     let (_, mut document) = config_toml_core::load_global_config_document(&codex_home)?;
 
     {
@@ -172,10 +179,13 @@ pub(crate) fn create_agent_core(input: CreateAgentInput) -> Result<AgentsSetting
         return Err(err);
     }
 
-    get_agents_settings_core()
+    get_agents_settings_core(app_settings)
 }
 
-pub(crate) fn update_agent_core(input: UpdateAgentInput) -> Result<AgentsSettingsDto, String> {
+pub(crate) fn update_agent_core(
+    app_settings: &AppSettings,
+    input: UpdateAgentInput,
+) -> Result<AgentsSettingsDto, String> {
     let original_name = normalize_agent_lookup_name(input.original_name.as_str())?;
     let name = normalize_agent_name(input.name.as_str())?;
     let description = normalize_optional_string(input.description.as_deref());
@@ -183,7 +193,7 @@ pub(crate) fn update_agent_core(input: UpdateAgentInput) -> Result<AgentsSetting
     let developer_instructions = normalize_optional_string(input.developer_instructions.as_deref());
     let rename_managed_file = input.rename_managed_file.unwrap_or(true);
 
-    let codex_home = resolve_codex_home()?;
+    let codex_home = home::resolve_codex_home(app_settings.codex_home.as_deref())?;
     let (_, mut document) = config_toml_core::load_global_config_document(&codex_home)?;
 
     let mut maybe_renamed_paths: Option<(PathBuf, PathBuf)> = None;
@@ -310,14 +320,17 @@ pub(crate) fn update_agent_core(input: UpdateAgentInput) -> Result<AgentsSetting
         return Err(err);
     }
 
-    get_agents_settings_core()
+    get_agents_settings_core(app_settings)
 }
 
-pub(crate) fn delete_agent_core(input: DeleteAgentInput) -> Result<AgentsSettingsDto, String> {
+pub(crate) fn delete_agent_core(
+    app_settings: &AppSettings,
+    input: DeleteAgentInput,
+) -> Result<AgentsSettingsDto, String> {
     let name = normalize_agent_lookup_name(input.name.as_str())?;
     let delete_managed_file = input.delete_managed_file.unwrap_or(false);
 
-    let codex_home = resolve_codex_home()?;
+    let codex_home = home::resolve_codex_home(app_settings.codex_home.as_deref())?;
     let (_, mut document) = config_toml_core::load_global_config_document(&codex_home)?;
 
     let removed_config_file = {
@@ -361,11 +374,15 @@ pub(crate) fn delete_agent_core(input: DeleteAgentInput) -> Result<AgentsSetting
         return Err(persist_error);
     }
 
-    get_agents_settings_core()
+    get_agents_settings_core(app_settings)
 }
 
-pub(crate) fn read_agent_config_toml_core(agent_name: &str) -> Result<String, String> {
-    let (codex_home, relative_path) = resolve_managed_agent_config_relative_path(agent_name)?;
+pub(crate) fn read_agent_config_toml_core(
+    app_settings: &AppSettings,
+    agent_name: &str,
+) -> Result<String, String> {
+    let (codex_home, relative_path) =
+        resolve_managed_agent_config_relative_path(app_settings, agent_name)?;
     let path = resolve_safe_managed_abs_path_for_read(&codex_home, &relative_path)?;
     if !path.exists() {
         return Ok(String::new());
@@ -373,15 +390,15 @@ pub(crate) fn read_agent_config_toml_core(agent_name: &str) -> Result<String, St
     std::fs::read_to_string(path).map_err(|err| format!("Failed to read agent config file: {err}"))
 }
 
-pub(crate) fn write_agent_config_toml_core(agent_name: &str, content: &str) -> Result<(), String> {
-    let (codex_home, relative_path) = resolve_managed_agent_config_relative_path(agent_name)?;
+pub(crate) fn write_agent_config_toml_core(
+    app_settings: &AppSettings,
+    agent_name: &str,
+    content: &str,
+) -> Result<(), String> {
+    let (codex_home, relative_path) =
+        resolve_managed_agent_config_relative_path(app_settings, agent_name)?;
     let path = resolve_safe_managed_abs_path_for_write(&codex_home, &relative_path)?;
     std::fs::write(path, content).map_err(|err| format!("Failed to write agent config file: {err}"))
-}
-
-fn resolve_codex_home() -> Result<PathBuf, String> {
-    codex_home::resolve_default_codex_home()
-        .ok_or_else(|| "Unable to resolve CODEX_HOME".to_string())
 }
 
 fn read_multi_agent_enabled(document: &Document) -> bool {
@@ -659,10 +676,11 @@ fn managed_relative_path_from_config(raw_path: &str) -> Option<PathBuf> {
 }
 
 fn resolve_managed_agent_config_relative_path(
+    app_settings: &AppSettings,
     agent_name: &str,
 ) -> Result<(PathBuf, PathBuf), String> {
     let name = normalize_agent_lookup_name(agent_name)?;
-    let codex_home = resolve_codex_home()?;
+    let codex_home = home::resolve_codex_home(app_settings.codex_home.as_deref())?;
     let (_, document) = config_toml_core::load_global_config_document(&codex_home)?;
 
     let agents_table = document
@@ -857,6 +875,58 @@ mod tests {
         }
         std::fs::create_dir_all(&dir).expect("create temp dir");
         dir
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn selected_symlink_home_supports_agent_files_but_rejects_file_escape() {
+        use std::os::unix::fs::symlink;
+        let fixture = temp_dir("selected-agent-home");
+        let home = fixture.join("volume-home");
+        std::fs::create_dir_all(home.join("agents")).unwrap();
+        std::fs::write(
+            home.join("config.toml"),
+            "[agents.fixture]\nconfig_file = \"agents/fixture.toml\"\n",
+        )
+        .unwrap();
+        std::fs::write(
+            home.join("agents/fixture.toml"),
+            "model = \"fixture-model\"\n",
+        )
+        .unwrap();
+        let selected = fixture.join("selected-home");
+        symlink(&home, &selected).unwrap();
+        let settings = AppSettings {
+            codex_home: Some(selected.to_string_lossy().into_owned()),
+            ..AppSettings::default()
+        };
+        let resolved = get_agents_settings_core(&settings).expect("selected agent settings");
+        assert_eq!(
+            resolved.config_path,
+            std::fs::canonicalize(&home)
+                .unwrap()
+                .join("config.toml")
+                .to_string_lossy()
+        );
+        assert!(read_agent_config_toml_core(&settings, "fixture")
+            .unwrap()
+            .contains("fixture-model"));
+        write_agent_config_toml_core(&settings, "fixture", "model = \"updated\"\n").unwrap();
+        assert!(std::fs::read_to_string(home.join("agents/fixture.toml"))
+            .unwrap()
+            .contains("updated"));
+        let outside = fixture.join("unrelated.toml");
+        std::fs::write(&outside, "model = \"unrelated\"\n").unwrap();
+        std::fs::remove_file(home.join("agents/fixture.toml")).unwrap();
+        symlink(&outside, home.join("agents/fixture.toml")).unwrap();
+        assert!(read_agent_config_toml_core(&settings, "fixture").is_err());
+        assert!(write_agent_config_toml_core(&settings, "fixture", "changed").is_err());
+        assert!(std::fs::read_to_string(&outside)
+            .unwrap()
+            .contains("unrelated"));
+        std::fs::remove_dir_all(&home).unwrap();
+        assert!(get_agents_settings_core(&settings).is_err());
+        std::fs::remove_dir_all(fixture).unwrap();
     }
 
     #[test]

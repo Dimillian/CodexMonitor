@@ -235,8 +235,15 @@ export type OpenAppTarget = {
   args: string[];
 };
 
+export type CodexHomeStatus = {
+  configuredPath: string | null;
+  effectivePath: string;
+  source: "application" | "environment" | "default";
+};
+
 export type AppSettings = {
   codexBin: string | null;
+  codexHome?: string | null;
   codexArgs: string | null;
   backendMode: BackendMode;
   remoteBackendProvider: RemoteBackendProvider;

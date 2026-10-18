@@ -13,10 +13,10 @@ use tokio::time::Instant;
 
 use crate::backend::app_server::WorkspaceSession;
 use crate::codex::config as codex_config;
-use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_home};
+use crate::codex::home::resolve_workspace_codex_home;
 use crate::rules;
 use crate::shared::account::{build_account_response, read_auth_account};
-use crate::types::WorkspaceEntry;
+use crate::types::{AppSettings, WorkspaceEntry};
 
 const LOGIN_START_TIMEOUT: Duration = Duration::from_secs(30);
 #[allow(dead_code)]
@@ -228,13 +228,12 @@ async fn resolve_workspace_and_parent(
 }
 
 async fn resolve_codex_home_for_workspace_core(
+    app_settings: &Mutex<AppSettings>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: &str,
 ) -> Result<PathBuf, String> {
     let (entry, parent_entry) = resolve_workspace_and_parent(workspaces, workspace_id).await?;
-    resolve_workspace_codex_home(&entry, parent_entry.as_ref())
-        .or_else(resolve_default_codex_home)
-        .ok_or_else(|| "Unable to resolve CODEX_HOME".to_string())
+    resolve_workspace_codex_home(&entry, parent_entry.as_ref(), &*app_settings.lock().await)
 }
 
 async fn resolve_workspace_path_core(
@@ -625,6 +624,7 @@ pub(crate) async fn account_rate_limits_core(
 }
 
 pub(crate) async fn account_read_core(
+    app_settings: &Mutex<AppSettings>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
@@ -643,8 +643,11 @@ pub(crate) async fn account_read_core(
     };
 
     let (entry, parent_entry) = resolve_workspace_and_parent(workspaces, &workspace_id).await?;
-    let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref())
-        .or_else(resolve_default_codex_home);
+    let codex_home = Some(resolve_workspace_codex_home(
+        &entry,
+        parent_entry.as_ref(),
+        &*app_settings.lock().await,
+    )?);
     let fallback = read_auth_account(codex_home);
 
     Ok(build_account_response(response, fallback))
@@ -856,6 +859,7 @@ pub(crate) async fn respond_to_server_request_core(
 }
 
 pub(crate) async fn remember_approval_rule_core(
+    app_settings: &Mutex<AppSettings>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
     command: Vec<String>,
@@ -869,7 +873,8 @@ pub(crate) async fn remember_approval_rule_core(
         return Err("empty command".to_string());
     }
 
-    let codex_home = resolve_codex_home_for_workspace_core(workspaces, &workspace_id).await?;
+    let codex_home =
+        resolve_codex_home_for_workspace_core(app_settings, workspaces, &workspace_id).await?;
     let rules_path = rules::default_rules_path(&codex_home);
     rules::append_prefix_rule(&rules_path, &command)?;
 
@@ -880,10 +885,12 @@ pub(crate) async fn remember_approval_rule_core(
 }
 
 pub(crate) async fn get_config_model_core(
+    app_settings: &Mutex<AppSettings>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
 ) -> Result<Value, String> {
-    let codex_home = resolve_codex_home_for_workspace_core(workspaces, &workspace_id).await?;
+    let codex_home =
+        resolve_codex_home_for_workspace_core(app_settings, workspaces, &workspace_id).await?;
     let model = codex_config::read_config_model(Some(codex_home))?;
     Ok(json!({ "model": model }))
 }

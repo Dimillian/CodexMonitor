@@ -37,11 +37,16 @@ where
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
     let _spawn_guard = workspace_session_spawn_lock().lock().await;
 
-    let (default_bin, resolved_args) = {
+    let (default_bin, resolved_args, codex_home) = {
         let settings = app_settings.lock().await;
         (
             settings.codex_bin.clone(),
             resolve_workspace_codex_args(&entry, parent_entry.as_ref(), Some(&settings)),
+            Some(resolve_workspace_codex_home(
+                &entry,
+                parent_entry.as_ref(),
+                &settings,
+            )?),
         )
     };
 
@@ -82,7 +87,6 @@ where
         });
     }
 
-    let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
     let new_session =
         spawn_session(entry.clone(), default_bin, target_args.clone(), codex_home).await?;
     let workspace_ids = {
@@ -129,8 +133,8 @@ where
 mod tests {
     use super::*;
 
-    use std::process::Stdio;
     use std::collections::HashSet;
+    use std::process::Stdio;
     use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
     use tokio::process::Command;

@@ -14,6 +14,7 @@ use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
 use crate::codex::args::parse_codex_args;
+use crate::codex::home::validate_reported_codex_home;
 use crate::shared::process_core::{kill_child_process_tree, tokio_command};
 use crate::types::WorkspaceEntry;
 
@@ -699,8 +700,12 @@ pub(crate) fn build_codex_command_with_bin(
 
 pub(crate) async fn check_codex_installation(
     codex_bin: Option<String>,
+    codex_home: Option<&Path>,
 ) -> Result<Option<String>, String> {
     let mut command = build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
+    if let Some(home) = codex_home {
+        command.env("CODEX_HOME", home);
+    }
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
 
@@ -755,7 +760,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     event_sink: E,
 ) -> Result<Arc<WorkspaceSession>, String> {
     let codex_bin = default_codex_bin;
-    let _ = check_codex_installation(codex_bin.clone()).await?;
+    let _ = check_codex_installation(codex_bin.clone(), codex_home.as_deref()).await?;
 
     let mut command = build_codex_command_with_bin(
         codex_bin,
@@ -1087,8 +1092,27 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             );
         }
     };
-    init_response?;
-    session.send_notification("initialized", None).await?;
+    let initialization = async {
+        let response = init_response?;
+        if response.get("error").is_some() {
+            return Err("Codex app-server rejected initialization".to_string());
+        }
+        let reported_home = response
+            .get("result")
+            .and_then(|result| result.get("codexHome"))
+            .or_else(|| response.get("codexHome"))
+            .and_then(Value::as_str);
+        if let (Some(expected), Some(reported)) = (codex_home.as_deref(), reported_home) {
+            validate_reported_codex_home(expected, reported)?;
+        }
+        session.send_notification("initialized", None).await
+    }
+    .await;
+    if let Err(error) = initialization {
+        let mut child = session.child.lock().await;
+        kill_child_process_tree(&mut child).await;
+        return Err(error);
+    }
 
     let payload = AppServerEvent {
         workspace_id: entry.id.clone(),

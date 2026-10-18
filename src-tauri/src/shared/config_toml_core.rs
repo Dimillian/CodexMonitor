@@ -91,3 +91,94 @@ pub(crate) fn set_top_level_string(document: &mut Document, key: &str, value_raw
     }
     document[key] = value(trimmed);
 }
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::os::unix::fs::symlink;
+    use std::path::PathBuf;
+    use uuid::Uuid;
+
+    struct Fixture(PathBuf);
+
+    impl Fixture {
+        fn new() -> Self {
+            let root = std::env::temp_dir().join(format!("codex-config-home-{}", Uuid::new_v4()));
+            fs::create_dir(&root).expect("create fixture");
+            Self(root)
+        }
+    }
+
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn config_document_round_trips_through_symlinked_home() {
+        let fixture = Fixture::new();
+        let resolved = fixture.0.join("mounted-home");
+        fs::create_dir(&resolved).expect("create home");
+        fs::write(
+            resolved.join("config.toml"),
+            "model = \"custom-provider-model\"\n",
+        )
+        .expect("seed config");
+        let home = fixture.0.join("selected-home");
+        symlink(&resolved, &home).expect("link home");
+
+        let (exists, mut document) = load_global_config_document(&home).expect("load config");
+        assert!(exists);
+        assert_eq!(
+            read_top_level_string(&document, "model").as_deref(),
+            Some("custom-provider-model")
+        );
+        set_feature_flag(&mut document, "multi_agent", true).expect("set feature");
+        persist_global_config_document(&home, &document).expect("save config");
+        assert!(fs::symlink_metadata(&home)
+            .expect("home metadata")
+            .file_type()
+            .is_symlink());
+        let (_, reread) = load_global_config_document(&home).expect("reload config");
+        assert_eq!(read_feature_flag(&reread, "multi_agent"), Some(true));
+    }
+
+    #[test]
+    fn config_document_rejects_external_file_symlink_under_symlinked_home() {
+        let fixture = Fixture::new();
+        let resolved = fixture.0.join("mounted-home");
+        fs::create_dir(&resolved).expect("create home");
+        let outside = fixture.0.join("outside.toml");
+        fs::write(&outside, "model = \"outside\"\n").expect("seed external file");
+        symlink(&outside, resolved.join("config.toml")).expect("link config");
+        let home = fixture.0.join("selected-home");
+        symlink(&resolved, &home).expect("link home");
+
+        assert!(load_global_config_document(&home)
+            .unwrap_err()
+            .contains("Invalid config.toml path"));
+        assert!(persist_global_config_document(&home, &Document::new())
+            .unwrap_err()
+            .contains("Invalid config.toml path"));
+        assert_eq!(
+            fs::read_to_string(outside).expect("read external file"),
+            "model = \"outside\"\n"
+        );
+    }
+
+    #[test]
+    fn unavailable_symlinked_home_is_an_error() {
+        let fixture = Fixture::new();
+        let unavailable = fixture.0.join("unmounted-volume/home");
+        let home = fixture.0.join("selected-home");
+        symlink(&unavailable, &home).expect("link unavailable home");
+
+        assert!(load_global_config_document(&home)
+            .unwrap_err()
+            .contains("CODEX_HOME"));
+        assert!(persist_global_config_document(&home, &Document::new()).is_err());
+        assert!(!unavailable.exists());
+    }
+}

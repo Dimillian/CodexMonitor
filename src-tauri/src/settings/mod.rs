@@ -1,8 +1,11 @@
-use tauri::{State, Window};
+use tauri::{AppHandle, State, Window};
 
+use crate::codex::home::{resolve_codex_home_status, CodexHomeStatus};
 use crate::shared::settings_core::{
-    get_app_settings_core, get_codex_config_path_core, update_app_settings_core,
+    get_app_settings_core, get_codex_config_path_core, get_codex_home_core,
+    update_app_settings_core,
 };
+use crate::shared::workspaces_core::{disconnect_all_sessions_core, workspace_session_spawn_lock};
 use crate::state::AppState;
 use crate::types::{AppSettings, BackendMode};
 use crate::window;
@@ -23,9 +26,13 @@ pub(crate) async fn update_app_settings(
     state: State<'_, AppState>,
     window: Window,
 ) -> Result<AppSettings, String> {
+    let _spawn_guard = workspace_session_spawn_lock().lock().await;
     let previous = state.app_settings.lock().await.clone();
     let updated =
         update_app_settings_core(settings, &state.app_settings, &state.settings_path).await?;
+    if previous.codex_home != updated.codex_home {
+        disconnect_all_sessions_core(&state.sessions).await;
+    }
     if should_reset_remote_backend(&previous, &updated) {
         *state.remote_backend.lock().await = None;
     }
@@ -35,8 +42,33 @@ pub(crate) async fn update_app_settings(
 }
 
 #[tauri::command]
-pub(crate) async fn get_codex_config_path() -> Result<String, String> {
-    get_codex_config_path_core()
+pub(crate) async fn get_codex_config_path(
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<String, String> {
+    if crate::remote_backend::is_remote_mode(&state).await {
+        let response = crate::remote_backend::call_remote(
+            &state,
+            app,
+            "get_codex_config_path",
+            serde_json::json!({}),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|error| error.to_string());
+    }
+    get_codex_config_path_core(&state.app_settings).await
+}
+
+#[tauri::command]
+pub(crate) async fn get_codex_home(state: State<'_, AppState>) -> Result<CodexHomeStatus, String> {
+    get_codex_home_core(&state.app_settings).await
+}
+
+#[tauri::command]
+pub(crate) async fn validate_codex_home(
+    codex_home: Option<String>,
+) -> Result<CodexHomeStatus, String> {
+    resolve_codex_home_status(codex_home.as_deref())
 }
 
 fn should_reset_remote_backend(previous: &AppSettings, updated: &AppSettings) -> bool {

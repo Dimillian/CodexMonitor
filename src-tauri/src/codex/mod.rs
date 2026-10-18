@@ -508,14 +508,7 @@ pub(crate) async fn start_review(
         .await;
     }
 
-    codex_core::start_review_core(
-        &state.sessions,
-        workspace_id,
-        thread_id,
-        target,
-        delivery,
-    )
-    .await
+    codex_core::start_review_core(&state.sessions, workspace_id, thread_id, target, delivery).await
 }
 
 #[tauri::command]
@@ -583,7 +576,9 @@ pub(crate) async fn set_codex_feature_flag(
         return Ok(());
     }
 
-    config::write_feature_enabled(feature_key.as_str(), enabled)
+    let settings = state.app_settings.lock().await;
+    let home = home::resolve_codex_home(settings.codex_home.as_deref())?;
+    config::write_feature_enabled(&home, feature_key.as_str(), enabled)
 }
 
 #[tauri::command]
@@ -597,7 +592,8 @@ pub(crate) async fn get_agents_settings(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    agents_config_core::get_agents_settings_core()
+    let app_settings = state.app_settings.lock().await.clone();
+    agents_config_core::get_agents_settings_core(&app_settings)
 }
 
 #[tauri::command]
@@ -617,7 +613,8 @@ pub(crate) async fn set_agents_core_settings(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    agents_config_core::set_agents_core_settings_core(input)
+    let app_settings = state.app_settings.lock().await.clone();
+    agents_config_core::set_agents_core_settings_core(&app_settings, input)
 }
 
 #[tauri::command]
@@ -633,7 +630,8 @@ pub(crate) async fn create_agent(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    agents_config_core::create_agent_core(input)
+    let app_settings = state.app_settings.lock().await.clone();
+    agents_config_core::create_agent_core(&app_settings, input)
 }
 
 #[tauri::command]
@@ -649,7 +647,8 @@ pub(crate) async fn update_agent(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    agents_config_core::update_agent_core(input)
+    let app_settings = state.app_settings.lock().await.clone();
+    agents_config_core::update_agent_core(&app_settings, input)
 }
 
 #[tauri::command]
@@ -665,7 +664,8 @@ pub(crate) async fn delete_agent(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    agents_config_core::delete_agent_core(input)
+    let app_settings = state.app_settings.lock().await.clone();
+    agents_config_core::delete_agent_core(&app_settings, input)
 }
 
 #[tauri::command]
@@ -685,7 +685,8 @@ pub(crate) async fn read_agent_config_toml(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    agents_config_core::read_agent_config_toml_core(agent_name.as_str())
+    let app_settings = state.app_settings.lock().await.clone();
+    agents_config_core::read_agent_config_toml_core(&app_settings, agent_name.as_str())
 }
 
 #[tauri::command]
@@ -709,7 +710,12 @@ pub(crate) async fn write_agent_config_toml(
         return Ok(());
     }
 
-    agents_config_core::write_agent_config_toml_core(agent_name.as_str(), content.as_str())
+    let app_settings = state.app_settings.lock().await.clone();
+    agents_config_core::write_agent_config_toml_core(
+        &app_settings,
+        agent_name.as_str(),
+        content.as_str(),
+    )
 }
 
 #[tauri::command]
@@ -747,7 +753,13 @@ pub(crate) async fn account_read(
         .await;
     }
 
-    codex_core::account_read_core(&state.sessions, &state.workspaces, workspace_id).await
+    codex_core::account_read_core(
+        &state.app_settings,
+        &state.sessions,
+        &state.workspaces,
+        workspace_id,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -864,7 +876,13 @@ pub(crate) async fn remember_approval_rule(
     command: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
-    codex_core::remember_approval_rule_core(&state.workspaces, workspace_id, command).await
+    codex_core::remember_approval_rule_core(
+        &state.app_settings,
+        &state.workspaces,
+        workspace_id,
+        command,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -883,7 +901,7 @@ pub(crate) async fn get_config_model(
         .await;
     }
 
-    codex_core::get_config_model_core(&state.workspaces, workspace_id).await
+    codex_core::get_config_model_core(&state.app_settings, &state.workspaces, workspace_id).await
 }
 
 /// Generates a commit message in the background without showing in the main chat

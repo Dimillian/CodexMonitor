@@ -1,22 +1,143 @@
 use std::env;
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 
-use crate::types::WorkspaceEntry;
+use serde::Serialize;
+
+use crate::types::{AppSettings, WorkspaceEntry};
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CodexHomeStatus {
+    pub(crate) configured_path: Option<String>,
+    pub(crate) effective_path: String,
+    pub(crate) source: String,
+}
+
+/// Resolve the home once for all application operations. An unavailable selected
+/// home is an error: falling back could select another environment's credentials.
+pub(crate) fn resolve_codex_home(configured_home: Option<&str>) -> Result<PathBuf, String> {
+    resolve_codex_home_with_sources(
+        configured_home,
+        env::var("CODEX_HOME").ok().as_deref(),
+        resolve_home_dir().as_deref(),
+    )
+    .map(|(path, _)| path)
+}
+
+/// Confirm that a launcher did not replace the home selected by the application.
+/// Older app-servers may omit this field; callers only invoke this when reported.
+pub(crate) fn validate_reported_codex_home(expected: &Path, reported: &str) -> Result<(), String> {
+    if reported.trim().is_empty() {
+        return Err(
+            "Codex app-server reported an empty Codex home; refusing to connect".to_string(),
+        );
+    }
+    let expected = fs::canonicalize(expected).map_err(|error| {
+        format!(
+            "Selected Codex home became unavailable: {} ({error})",
+            expected.display(),
+        )
+    })?;
+    if !expected.is_dir() {
+        return Err(format!(
+            "Selected Codex home is not a directory: {}",
+            expected.display()
+        ));
+    }
+    let (actual, _) = resolve_codex_home_with_sources(Some(reported), None, None)?;
+    if actual != expected {
+        return Err(format!(
+            "Codex app-server is using a different Codex home (expected {}, reported {}). Check the configured executable or launcher; refusing to connect.",
+            expected.display(), actual.display(),
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn resolve_codex_home_status(
+    configured_home: Option<&str>,
+) -> Result<CodexHomeStatus, String> {
+    let (path, source) = resolve_codex_home_with_sources(
+        configured_home,
+        env::var("CODEX_HOME").ok().as_deref(),
+        resolve_home_dir().as_deref(),
+    )?;
+    Ok(CodexHomeStatus {
+        configured_path: nonempty(configured_home).map(str::to_owned),
+        effective_path: path.to_string_lossy().into_owned(),
+        source: source.to_string(),
+    })
+}
+
+fn nonempty(value: Option<&str>) -> Option<&str> {
+    value.map(str::trim).filter(|value| !value.is_empty())
+}
+
+fn resolve_codex_home_with_sources(
+    configured_home: Option<&str>,
+    environment_home: Option<&str>,
+    user_home: Option<&Path>,
+) -> Result<(PathBuf, &'static str), String> {
+    let (path, source) = if let Some(value) = nonempty(configured_home) {
+        (
+            normalize_codex_home(value).expect("nonempty home"),
+            "application",
+        )
+    } else if let Some(value) = nonempty(environment_home) {
+        (
+            normalize_codex_home(value).expect("nonempty home"),
+            "environment",
+        )
+    } else {
+        (
+            user_home
+                .ok_or_else(|| "Unable to resolve the default Codex home directory".to_string())?
+                .join(".codex"),
+            "default",
+        )
+    };
+    if !path.is_absolute() {
+        return Err(format!(
+            "Codex home must be an absolute directory path: {}",
+            path.display()
+        ));
+    }
+    let canonical = match fs::canonicalize(&path) {
+        Ok(canonical) => canonical,
+        Err(error)
+            if source == "default"
+                && error.kind() == std::io::ErrorKind::NotFound
+                && matches!(fs::symlink_metadata(&path), Err(error) if error.kind() == std::io::ErrorKind::NotFound) =>
+        {
+            // Preserve first-run default behavior; global file writes create it.
+            return Ok((path, source));
+        }
+        Err(error) => {
+            return Err(format!(
+                "Codex home directory is unavailable: {} ({error}). Ensure its volume is mounted and the directory is accessible.",
+                path.display()
+            ));
+        }
+    };
+    if !canonical.is_dir() {
+        return Err(format!("Codex home is not a directory: {}", path.display()));
+    }
+    fs::read_dir(&canonical).map_err(|error| {
+        format!(
+            "Codex home directory is not accessible: {} ({error})",
+            path.display()
+        )
+    })?;
+    Ok((canonical, source))
+}
 
 pub(crate) fn resolve_workspace_codex_home(
     _entry: &WorkspaceEntry,
     _parent_entry: Option<&WorkspaceEntry>,
-) -> Option<PathBuf> {
-    resolve_default_codex_home()
-}
-
-pub(crate) fn resolve_default_codex_home() -> Option<PathBuf> {
-    if let Ok(value) = env::var("CODEX_HOME") {
-        if let Some(path) = normalize_codex_home(&value) {
-            return Some(path);
-        }
-    }
-    resolve_home_dir().map(|home| home.join(".codex"))
+    app_settings: &AppSettings,
+) -> Result<PathBuf, String> {
+    resolve_codex_home(app_settings.codex_home.as_deref())
 }
 
 fn normalize_codex_home(value: &str) -> Option<PathBuf> {
@@ -196,21 +317,175 @@ mod tests {
         }
     }
 
-    #[test]
-    fn workspace_codex_home_uses_default_resolution() {
-        let entry = workspace_entry(WorkspaceKind::Main, "/repo");
-        let _guard = ENV_LOCK.lock().expect("lock env");
+    struct Fixture(PathBuf);
 
-        let prev_codex_home = std::env::var("CODEX_HOME").ok();
-        std::env::set_var("CODEX_HOME", "/tmp/codex-global");
-
-        let resolved = resolve_workspace_codex_home(&entry, None);
-        assert_eq!(resolved, Some(PathBuf::from("/tmp/codex-global")));
-
-        match prev_codex_home {
-            Some(value) => std::env::set_var("CODEX_HOME", value),
-            None => std::env::remove_var("CODEX_HOME"),
+    impl Fixture {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!("codex-home-{}", uuid::Uuid::new_v4()));
+            fs::create_dir_all(&path).expect("create fixture");
+            Self(path)
         }
+
+        fn directory(&self, name: &str) -> PathBuf {
+            let path = self.0.join(name);
+            fs::create_dir_all(&path).expect("create directory");
+            path
+        }
+    }
+
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn reported_home_must_match_selected_existing_directory() {
+        let fixture = Fixture::new();
+        let selected = fixture.directory("selected");
+        let other = fixture.directory("other");
+        validate_reported_codex_home(&selected, selected.to_str().unwrap()).unwrap();
+        assert!(
+            validate_reported_codex_home(&selected, other.to_str().unwrap())
+                .unwrap_err()
+                .contains("different Codex home")
+        );
+        assert!(validate_reported_codex_home(&selected, "").is_err());
+        assert!(validate_reported_codex_home(
+            &selected,
+            fixture.0.join("missing").to_str().unwrap()
+        )
+        .is_err());
+        assert!(validate_reported_codex_home(
+            &fixture.0.join("missing"),
+            selected.to_str().unwrap()
+        )
+        .is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn reported_home_accepts_symlink_to_selected_home() {
+        let fixture = Fixture::new();
+        let selected = fixture.directory("selected");
+        let linked = fixture.0.join("linked");
+        std::os::unix::fs::symlink(&selected, &linked).unwrap();
+        validate_reported_codex_home(&selected, linked.to_str().unwrap()).unwrap();
+        validate_reported_codex_home(&linked, selected.to_str().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn explicit_home_precedes_environment_and_default() {
+        let fixture = Fixture::new();
+        let selected = fixture.directory("selected");
+        let environment = fixture.directory("environment");
+        let (resolved, source) = resolve_codex_home_with_sources(
+            selected.to_str(),
+            environment.to_str(),
+            Some(&fixture.0),
+        )
+        .expect("resolve explicit");
+        assert_eq!(
+            resolved,
+            fs::canonicalize(selected).expect("canonical selected")
+        );
+        assert_eq!(source, "application");
+    }
+
+    #[test]
+    fn environment_precedes_default_and_blank_setting_restores_default_behavior() {
+        let fixture = Fixture::new();
+        let environment = fixture.directory("environment");
+        let (resolved, source) =
+            resolve_codex_home_with_sources(Some("  "), environment.to_str(), Some(&fixture.0))
+                .expect("resolve environment");
+        assert_eq!(
+            resolved,
+            fs::canonicalize(environment).expect("canonical environment")
+        );
+        assert_eq!(source, "environment");
+        let (resolved, source) =
+            resolve_codex_home_with_sources(None, Some("  "), Some(&fixture.0))
+                .expect("missing default remains creatable");
+        assert_eq!(resolved, fixture.0.join(".codex"));
+        assert_eq!(source, "default");
+    }
+
+    #[test]
+    fn unavailable_selected_home_never_falls_back() {
+        let fixture = Fixture::new();
+        let selected = fixture.0.join("unmounted-volume");
+        let environment = fixture.directory("environment");
+        let error = resolve_codex_home_with_sources(
+            selected.to_str(),
+            environment.to_str(),
+            Some(&fixture.0),
+        )
+        .expect_err("unavailable explicit home");
+        assert!(error.contains("unavailable"));
+        assert!(error.contains("unmounted-volume"));
+        assert!(
+            resolve_codex_home_with_sources(None, selected.to_str(), Some(&fixture.0)).is_err()
+        );
+    }
+
+    #[test]
+    fn home_must_be_an_absolute_directory() {
+        let fixture = Fixture::new();
+        let file = fixture.0.join("config.toml");
+        fs::write(&file, "").expect("create file");
+        assert!(resolve_codex_home_with_sources(file.to_str(), None, None)
+            .expect_err("file is not home")
+            .contains("not a directory"));
+        assert!(
+            resolve_codex_home_with_sources(Some("relative/home"), None, None)
+                .expect_err("relative home")
+                .contains("absolute")
+        );
+    }
+
+    #[test]
+    fn workspace_home_uses_application_setting() {
+        let fixture = Fixture::new();
+        let selected = fixture.directory("selected");
+        let settings = AppSettings {
+            codex_home: selected.to_str().map(str::to_owned),
+            ..AppSettings::default()
+        };
+        let entry = workspace_entry(WorkspaceKind::Main, "/repo");
+        assert_eq!(
+            resolve_workspace_codex_home(&entry, None, &settings).expect("resolve workspace"),
+            fs::canonicalize(selected).expect("canonical selected"),
+        );
+        let status = resolve_codex_home_status(settings.codex_home.as_deref()).expect("status");
+        assert_eq!(status.configured_path, settings.codex_home);
+        assert_eq!(status.source, "application");
+        let serialized = serde_json::to_value(&status).expect("serialize status");
+        assert_eq!(serialized["configuredPath"], settings.codex_home.unwrap());
+        assert_eq!(serialized["effectivePath"], status.effective_path);
+        assert_eq!(serialized["source"], "application");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_home_is_canonical_and_dangling_link_is_rejected() {
+        use std::os::unix::fs::symlink;
+        let fixture = Fixture::new();
+        let destination = fixture.directory("volume-home");
+        fs::write(destination.join("config.toml"), "model = \"fixture\"\n").expect("config");
+        let link = fixture.0.join("selected-home");
+        symlink(&destination, &link).expect("symlink home");
+        let (resolved, _) =
+            resolve_codex_home_with_sources(link.to_str(), None, None).expect("resolve symlink");
+        assert_eq!(
+            resolved,
+            fs::canonicalize(&destination).expect("canonical destination")
+        );
+        fs::remove_dir_all(destination).expect("simulate unmounted home");
+        assert!(resolve_codex_home_with_sources(link.to_str(), None, None).is_err());
+        let default_link = fixture.0.join(".codex");
+        symlink(fixture.0.join("absent"), &default_link).expect("dangling default");
+        assert!(resolve_codex_home_with_sources(None, None, Some(&fixture.0)).is_err());
     }
 
     #[test]

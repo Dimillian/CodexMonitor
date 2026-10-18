@@ -24,5 +24,12 @@ pub(crate) async fn local_usage_snapshot(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    local_usage_core::local_usage_snapshot_core(&state.workspaces, days, workspace_path).await
+    let app_settings = state.app_settings.lock().await.clone();
+    local_usage_core::local_usage_snapshot_core(
+        &app_settings,
+        &state.workspaces,
+        days,
+        workspace_path,
+    )
+    .await
 }

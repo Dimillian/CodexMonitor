@@ -17,11 +17,23 @@ pub(super) async fn try_handle(
 ) -> Option<Result<Value, String>> {
     match method {
         "get_codex_config_path" => {
-            let path = match settings_core::get_codex_config_path_core() {
+            let path = match settings_core::get_codex_config_path_core(&state.app_settings).await {
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
             };
             Some(Ok(Value::String(path)))
+        }
+        "get_codex_home" => Some(
+            settings_core::get_codex_home_core(&state.app_settings)
+                .await
+                .and_then(|status| serde_json::to_value(status).map_err(|err| err.to_string())),
+        ),
+        "validate_codex_home" => {
+            let configured_home = parse_optional_string(params, "codexHome");
+            Some(
+                crate::codex::home::resolve_codex_home_status(configured_home.as_deref())
+                    .and_then(|status| serde_json::to_value(status).map_err(|err| err.to_string())),
+            )
         }
         "get_config_model" => {
             let workspace_id = match parse_string(params, "workspaceId") {

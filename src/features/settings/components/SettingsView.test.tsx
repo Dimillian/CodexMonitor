@@ -16,6 +16,7 @@ import {
   getAppBuildType,
   getAgentsSettings,
   getConfigModel,
+  getCodexHome,
   getExperimentalFeatureList,
   isMobileRuntime,
   getModelList,
@@ -39,6 +40,7 @@ vi.mock("@services/tauri", async () => {
     getAppBuildType: vi.fn(),
     getModelList: vi.fn(),
     getConfigModel: vi.fn(),
+    getCodexHome: vi.fn(),
     getExperimentalFeatureList: vi.fn(),
     getAgentsSettings: vi.fn(),
     isMobileRuntime: vi.fn(),
@@ -49,6 +51,7 @@ vi.mock("@services/tauri", async () => {
 const connectWorkspaceMock = vi.mocked(connectWorkspace);
 const getAppBuildTypeMock = vi.mocked(getAppBuildType);
 const getConfigModelMock = vi.mocked(getConfigModel);
+vi.mocked(getCodexHome).mockResolvedValue({ configuredPath: null, effectivePath: "/Users/me/.codex", source: "default" });
 const getModelListMock = vi.mocked(getModelList);
 const getExperimentalFeatureListMock = vi.mocked(getExperimentalFeatureList);
 const getAgentsSettingsMock = vi.mocked(getAgentsSettings);

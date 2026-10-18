@@ -31,7 +31,14 @@ async fn file_read_impl(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    file_read_core(&state.workspaces, scope, kind, workspace_id).await
+    file_read_core(
+        &state.workspaces,
+        &state.app_settings,
+        scope,
+        kind,
+        workspace_id,
+    )
+    .await
 }
 
 async fn file_write_impl(
@@ -58,7 +65,15 @@ async fn file_write_impl(
         return Ok(());
     }
 
-    file_write_core(&state.workspaces, scope, kind, workspace_id, content).await
+    file_write_core(
+        &state.workspaces,
+        &state.app_settings,
+        scope,
+        kind,
+        workspace_id,
+        content,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -98,7 +113,10 @@ pub(crate) async fn read_image_as_data_url(
     let mobile_runtime = cfg!(any(target_os = "ios", target_os = "android"));
     let remote_mode = remote_backend::is_remote_mode(&*state).await;
     if !mobile_runtime && !remote_mode {
-        return Err("Image conversion is only supported in remote backend mode or on mobile runtimes".to_string());
+        return Err(
+            "Image conversion is only supported in remote backend mode or on mobile runtimes"
+                .to_string(),
+        );
     }
 
     let normalized = codex_core::normalize_file_path(trimmed_path);

@@ -3,6 +3,7 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
   AppSettings,
+  CodexHomeStatus,
   CodexUpdateResult,
   CodexDoctorResult,
   DictationModelStatus,
@@ -859,6 +860,14 @@ export async function movePrompt(
     path: data.path,
     scope: data.scope,
   });
+}
+
+export async function getCodexHome(): Promise<CodexHomeStatus> {
+  return invoke<CodexHomeStatus>("get_codex_home");
+}
+
+export async function validateCodexHome(codexHome: string | null): Promise<CodexHomeStatus> {
+  return invoke<CodexHomeStatus>("validate_codex_home", { codexHome });
 }
 
 export async function getAppSettings(): Promise<AppSettings> {

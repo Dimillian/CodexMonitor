@@ -10,8 +10,10 @@ import type {
 import { useGlobalAgentsMd } from "./useGlobalAgentsMd";
 import { useGlobalCodexConfigToml } from "./useGlobalCodexConfigToml";
 import { useSettingsDefaultModels } from "./useSettingsDefaultModels";
+import { useCodexHomeSetting } from "./useCodexHomeSetting";
 import { buildEditorContentMeta } from "@settings/components/settingsViewHelpers";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
+import { getCodexConfigPath } from "@services/tauri";
 
 type UseSettingsCodexSectionArgs = {
   appSettings: AppSettings;
@@ -37,6 +39,18 @@ export type SettingsCodexSectionProps = {
   onRefreshDefaultModels: () => void;
   codexPathDraft: string;
   codexArgsDraft: string;
+  codexHomeDraft: string;
+  codexHomeEffectivePath: string | null;
+  globalConfigPath: string | null;
+  globalAgentsPath: string | null;
+  codexHomeSource: string | null;
+  codexHomeValidatedPath: string | null;
+  codexHomeError: string | null;
+  codexHomeValidating: boolean;
+  codexSettingsError: string | null;
+  onSetCodexHomeDraft: (value: string) => void;
+  onBrowseCodexHome: () => Promise<void>;
+  onValidateCodexHome: () => Promise<void>;
   codexDirty: boolean;
   isSavingSettings: boolean;
   doctorState: {
@@ -85,6 +99,24 @@ export const useSettingsCodexSection = ({
   const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
   const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [codexSettingsError, setCodexSettingsError] = useState<string | null>(null);
+  const home = useCodexHomeSetting(appSettings.codexHome, appSettings.backendMode !== "remote");
+  const [remoteConfigPath, setRemoteConfigPath] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    setRemoteConfigPath(null);
+    if (appSettings.backendMode === "remote") {
+      void getCodexConfigPath().then(
+        (path) => { if (active) setRemoteConfigPath(path); },
+        () => {},
+      );
+    }
+    return () => { active = false; };
+  }, [appSettings.backendMode, appSettings.activeRemoteBackendId, appSettings.remoteBackendHost]);
+  const globalConfigPath = appSettings.backendMode === "remote"
+    ? remoteConfigPath
+    : home.effectiveHome ? `${home.effectiveHome.effectivePath.replace(/[\\/]$/, "")}/config.toml` : null;
+  const globalAgentsPath = globalConfigPath?.replace(/config\.toml$/, "AGENTS.md") ?? null;
   const [doctorState, setDoctorState] = useState<{
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
@@ -113,7 +145,7 @@ export const useSettingsCodexSection = ({
     setContent: setGlobalAgentsContent,
     refresh: refreshGlobalAgents,
     save: saveGlobalAgents,
-  } = useGlobalAgentsMd();
+  } = useGlobalAgentsMd(appSettings.codexHome);
 
   const {
     content: globalConfigContent,
@@ -126,7 +158,7 @@ export const useSettingsCodexSection = ({
     setContent: setGlobalConfigContent,
     refresh: refreshGlobalConfig,
     save: saveGlobalConfig,
-  } = useGlobalCodexConfigToml();
+  } = useGlobalCodexConfigToml(appSettings.codexHome);
 
   const globalAgentsEditorMeta = buildEditorContentMeta({
     isLoading: globalAgentsLoading,
@@ -154,9 +186,11 @@ export const useSettingsCodexSection = ({
 
   const nextCodexBin = codexPathDraft.trim() ? codexPathDraft.trim() : null;
   const nextCodexArgs = normalizeCodexArgsInput(codexArgsDraft);
+  const nextCodexHome = home.draft.trim() || null;
+  const homeChanged = nextCodexHome !== (appSettings.codexHome ?? null);
   const codexDirty =
     nextCodexBin !== (appSettings.codexBin ?? null) ||
-    nextCodexArgs !== (appSettings.codexArgs ?? null);
+    nextCodexArgs !== (appSettings.codexArgs ?? null) || homeChanged;
 
   const handleBrowseCodex = async () => {
     const selection = await open({ multiple: false, directory: false });
@@ -166,14 +200,30 @@ export const useSettingsCodexSection = ({
     setCodexPathDraft(selection);
   };
 
+  const handleBrowseCodexHome = async () => {
+    const selection = await open({ multiple: false, directory: true, title: "Select Codex Home" });
+    if (typeof selection === "string") home.updateDraft(selection);
+  };
+
   const handleSaveCodexSettings = async () => {
     setIsSavingSettings(true);
+    setCodexSettingsError(null);
     try {
+      if (homeChanged && appSettings.backendMode === "remote") {
+        setCodexSettingsError("Switch to the local backend to change Codex Home.");
+        return;
+      }
+      if (homeChanged && !(await home.validate())) return;
       await onUpdateAppSettings({
         ...appSettings,
         codexBin: nextCodexBin,
         codexArgs: nextCodexArgs,
+        codexHome: nextCodexHome,
       });
+      // Rebootstrap every session and provider cache against the newly saved home.
+      if (homeChanged) window.location.reload();
+    } catch (error) {
+      setCodexSettingsError(error instanceof Error ? error.message : String(error));
     } finally {
       setIsSavingSettings(false);
     }
@@ -253,6 +303,18 @@ export const useSettingsCodexSection = ({
     },
     codexPathDraft,
     codexArgsDraft,
+    codexHomeDraft: home.draft,
+    codexHomeEffectivePath: home.effectiveHome?.effectivePath ?? null,
+    globalConfigPath,
+    globalAgentsPath,
+    codexHomeSource: home.effectiveHome?.source ?? null,
+    codexHomeValidatedPath: home.validatedHome?.effectivePath ?? null,
+    codexHomeError: home.error,
+    codexHomeValidating: home.validating,
+    codexSettingsError,
+    onSetCodexHomeDraft: home.updateDraft,
+    onBrowseCodexHome: handleBrowseCodexHome,
+    onValidateCodexHome: async () => { await home.validate(); },
     codexDirty,
     isSavingSettings,
     doctorState,

@@ -10,6 +10,8 @@ import {
   fetchGit,
   forkThread,
   getAppsList,
+  getCodexHome,
+  validateCodexHome,
   getAgentsSettings,
   getExperimentalFeatureList,
   getGitHubIssues,
@@ -69,6 +71,17 @@ vi.mock("@tauri-apps/plugin-notification", () => ({
   requestPermission: vi.fn(),
   sendNotification: vi.fn(),
 }));
+
+describe("Codex Home IPC", () => {
+  it("queries the saved home and validates explicit and default selections", async () => {
+    await getCodexHome();
+    expect(invoke).toHaveBeenCalledWith("get_codex_home");
+    await validateCodexHome("/selected/home");
+    expect(invoke).toHaveBeenCalledWith("validate_codex_home", { codexHome: "/selected/home" });
+    await validateCodexHome(null);
+    expect(invoke).toHaveBeenCalledWith("validate_codex_home", { codexHome: null });
+  });
+});
 
 describe("tauri invoke wrappers", () => {
   beforeEach(() => {

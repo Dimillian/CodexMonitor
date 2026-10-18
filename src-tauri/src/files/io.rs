@@ -1,6 +1,6 @@
 use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::io::{ErrorKind, Read};
+use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -24,8 +24,14 @@ fn resolve_root(
     root_context: &str,
     root_may_be_missing: bool,
 ) -> Result<Option<PathBuf>, String> {
-    if root_may_be_missing && !root.exists() {
-        return Ok(None);
+    // `exists()` follows symlinks and hides both dangling links and permission
+    // errors. Only a genuinely absent root may use the missing-file behavior.
+    match std::fs::symlink_metadata(root) {
+        Err(err) if root_may_be_missing && err.kind() == ErrorKind::NotFound => {
+            return Ok(None);
+        }
+        Err(err) => return Err(format!("Failed to resolve {root_context}: {err}")),
+        Ok(_) => {}
     }
     let canonical_root = root
         .canonicalize()
@@ -34,6 +40,37 @@ fn resolve_root(
         return Err(format!("{root_context} is not a directory"));
     }
     Ok(Some(canonical_root))
+}
+
+fn file_candidate(root: &Path, filename: &str, file_context: &str) -> Result<PathBuf, String> {
+    let mut components = Path::new(filename).components();
+    if !matches!(components.next(), Some(Component::Normal(_))) || components.next().is_some() {
+        return Err(format!("Invalid {file_context} path"));
+    }
+    Ok(root.join(filename))
+}
+
+fn resolve_existing_file(
+    canonical_root: &Path,
+    candidate: &Path,
+    file_context: &str,
+    allow_external_symlink_target: bool,
+) -> Result<Option<PathBuf>, String> {
+    let metadata = match std::fs::symlink_metadata(candidate) {
+        Ok(metadata) => metadata,
+        Err(err) if err.kind() == ErrorKind::NotFound => return Ok(None),
+        Err(err) => return Err(format!("Failed to resolve {file_context}: {err}")),
+    };
+    // An existing dangling symlink is an error, never a new file to create.
+    let canonical_path = candidate
+        .canonicalize()
+        .map_err(|err| format!("Failed to resolve {file_context}: {err}"))?;
+    if !canonical_path.starts_with(canonical_root)
+        && !(allow_external_symlink_target && metadata.file_type().is_symlink())
+    {
+        return Err(format!("Invalid {file_context} path"));
+    }
+    Ok(Some(canonical_path))
 }
 
 fn resolve_or_create_root(root: &Path, root_context: &str) -> Result<PathBuf, String> {
@@ -60,23 +97,16 @@ pub(crate) fn read_text_file_within(
         return Ok(missing_response());
     };
 
-    let candidate = canonical_root.join(filename);
-    if !candidate.exists() {
+    let candidate = file_candidate(&canonical_root, filename, file_context)?;
+    let Some(canonical_path) = resolve_existing_file(
+        &canonical_root,
+        &candidate,
+        file_context,
+        allow_external_symlink_target,
+    )?
+    else {
         return Ok(missing_response());
-    }
-
-    let candidate_is_symlink = std::fs::symlink_metadata(&candidate)
-        .map_err(|err| format!("Failed to open {file_context}: {err}"))?
-        .file_type()
-        .is_symlink();
-    let canonical_path = candidate
-        .canonicalize()
-        .map_err(|err| format!("Failed to open {file_context}: {err}"))?;
-    if !canonical_path.starts_with(&canonical_root)
-        && !(allow_external_symlink_target && candidate_is_symlink)
-    {
-        return Err(format!("Invalid {file_context} path"));
-    }
+    };
 
     let mut file = File::open(&canonical_path)
         .map_err(|err| format!("Failed to open {file_context}: {err}"))?;
@@ -109,28 +139,14 @@ pub(crate) fn write_text_file_within(
             .ok_or_else(|| format!("Failed to resolve {root_context}"))?
     };
 
-    let candidate = canonical_root.join(filename);
-    if !candidate.starts_with(&canonical_root) {
-        return Err(format!("Invalid {file_context} path"));
-    }
-
-    let target_path = if candidate.exists() {
-        let candidate_is_symlink = std::fs::symlink_metadata(&candidate)
-            .map_err(|err| format!("Failed to resolve {file_context}: {err}"))?
-            .file_type()
-            .is_symlink();
-        let canonical_path = candidate
-            .canonicalize()
-            .map_err(|err| format!("Failed to resolve {file_context}: {err}"))?;
-        if !canonical_path.starts_with(&canonical_root)
-            && !(allow_external_symlink_target && candidate_is_symlink)
-        {
-            return Err(format!("Invalid {file_context} path"));
-        }
-        canonical_path
-    } else {
-        candidate
-    };
+    let candidate = file_candidate(&canonical_root, filename, file_context)?;
+    let target_path = resolve_existing_file(
+        &canonical_root,
+        &candidate,
+        file_context,
+        allow_external_symlink_target,
+    )?
+    .unwrap_or(candidate);
 
     std::fs::write(&target_path, content)
         .map_err(|err| format!("Failed to write {file_context}: {err}"))
@@ -313,5 +329,138 @@ mod tests {
         )
         .expect_err("should reject symlink escape");
         assert!(error.contains("Invalid config.toml path"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn selected_home_policy_allows_external_agents_symlink_and_rejects_other_escapes() {
+        use crate::files::ops::{read_with_policy, write_with_policy};
+        use crate::files::policy::{policy_for, FileKind, FileScope};
+        use std::os::unix::fs::symlink;
+
+        let fixture = temp_dir();
+        let actual_home = fixture.join("mounted-home");
+        std::fs::create_dir_all(&actual_home).expect("create home");
+        let selected_home = fixture.join("selected-home");
+        symlink(&actual_home, &selected_home).expect("link home");
+
+        let agents_policy = policy_for(FileScope::Global, FileKind::Agents).expect("agents policy");
+        let outside_agents = fixture.join("outside-AGENTS.md");
+        std::fs::write(&outside_agents, "outside agents").expect("seed external agents");
+        let agents_link = actual_home.join(agents_policy.filename);
+        symlink(&outside_agents, &agents_link).expect("link external agents");
+        let response = read_with_policy(&selected_home, agents_policy)
+            .expect("read external global agents link");
+        assert_eq!(response.content, "outside agents");
+        write_with_policy(&selected_home, agents_policy, "updated agents")
+            .expect("write external global agents link");
+        assert_eq!(
+            std::fs::read_to_string(&outside_agents).expect("read updated agents"),
+            "updated agents"
+        );
+
+        let config_policy = policy_for(FileScope::Global, FileKind::Config).expect("config policy");
+        let outside_config = fixture.join("outside-config.toml");
+        std::fs::write(&outside_config, "outside config").expect("seed external config");
+        let config_link = actual_home.join(config_policy.filename);
+        symlink(&outside_config, &config_link).expect("link external config");
+        assert!(read_with_policy(&selected_home, config_policy).is_err());
+        assert!(write_with_policy(&selected_home, config_policy, "replaced config").is_err());
+        assert_eq!(
+            std::fs::read_to_string(&outside_config).expect("read unchanged config"),
+            "outside config"
+        );
+
+        for (policy, target, child) in [
+            (agents_policy, &outside_agents, &agents_link),
+            (config_policy, &outside_config, &config_link),
+        ] {
+            std::fs::remove_file(target).expect("make child link dangling");
+            assert!(read_with_policy(&selected_home, policy).is_err());
+            assert!(write_with_policy(&selected_home, policy, "must not create").is_err());
+            assert!(!target.exists());
+            std::fs::remove_file(child).expect("remove child link");
+
+            write_with_policy(&selected_home, policy, "inside").expect("write ordinary child");
+            let response = read_with_policy(&selected_home, policy).expect("read ordinary child");
+            assert_eq!(response.content, "inside");
+        }
+        std::fs::remove_dir_all(fixture).expect("remove fixture");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn workspace_agents_policy_rejects_external_symlink() {
+        use crate::files::ops::{read_with_policy, write_with_policy};
+        use crate::files::policy::{policy_for, FileKind, FileScope};
+        use std::os::unix::fs::symlink;
+
+        let fixture = temp_dir();
+        let workspace = fixture.join("workspace");
+        std::fs::create_dir_all(&workspace).expect("create workspace");
+        let outside_agents = fixture.join("outside-AGENTS.md");
+        std::fs::write(&outside_agents, "outside").expect("seed external agents");
+        symlink(&outside_agents, workspace.join("AGENTS.md")).expect("link external agents");
+
+        let policy = policy_for(FileScope::Workspace, FileKind::Agents).expect("workspace policy");
+        assert!(read_with_policy(&workspace, policy).is_err());
+        assert!(write_with_policy(&workspace, policy, "replaced").is_err());
+        assert_eq!(
+            std::fs::read_to_string(&outside_agents).expect("read unchanged agents"),
+            "outside"
+        );
+
+        std::fs::remove_dir_all(fixture).expect("remove fixture");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn dangling_root_is_not_reported_as_a_missing_global_file() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = temp_dir();
+        std::fs::create_dir_all(&fixture).expect("create fixture");
+        let missing_target = fixture.join("unmounted/home");
+        let root = fixture.join("home-link");
+        symlink(&missing_target, &root).expect("link unavailable home");
+        assert!(
+            read_text_file_within(&root, "AGENTS.md", true, "CODEX_HOME", "AGENTS.md", false)
+                .is_err()
+        );
+        assert!(write_text_file_within(
+            &root,
+            "AGENTS.md",
+            "blocked",
+            true,
+            "CODEX_HOME",
+            "AGENTS.md",
+            false
+        )
+        .is_err());
+        assert!(!missing_target.exists());
+        std::fs::remove_dir_all(fixture).expect("remove fixture");
+    }
+
+    #[test]
+    fn file_names_cannot_escape_root_or_traverse_subdirectories() {
+        let root = temp_dir();
+        std::fs::create_dir_all(&root).expect("create root");
+        for filename in ["../AGENTS.md", "/tmp/AGENTS.md", "nested/AGENTS.md"] {
+            assert!(
+                read_text_file_within(&root, filename, false, "workspace", "AGENTS.md", false)
+                    .is_err()
+            );
+            assert!(write_text_file_within(
+                &root,
+                filename,
+                "blocked",
+                false,
+                "workspace",
+                "AGENTS.md",
+                false
+            )
+            .is_err());
+        }
+        std::fs::remove_dir_all(root).expect("remove fixture");
     }
 }

@@ -584,8 +584,18 @@ impl DaemonState {
     }
 
     async fn update_app_settings(&self, settings: AppSettings) -> Result<AppSettings, String> {
-        settings_core::update_app_settings_core(settings, &self.app_settings, &self.settings_path)
-            .await
+        let _spawn_guard = workspaces_core::workspace_session_spawn_lock().lock().await;
+        let previous = self.app_settings.lock().await.clone();
+        let updated = settings_core::update_app_settings_core(
+            settings,
+            &self.app_settings,
+            &self.settings_path,
+        )
+        .await?;
+        if previous.codex_home != updated.codex_home {
+            workspaces_core::disconnect_all_sessions_core(&self.sessions).await;
+        }
+        Ok(updated)
     }
 
     async fn set_codex_feature_flag(
@@ -593,43 +603,51 @@ impl DaemonState {
         feature_key: String,
         enabled: bool,
     ) -> Result<(), String> {
-        codex_config::write_feature_enabled(feature_key.as_str(), enabled)
+        let settings = self.app_settings.lock().await;
+        let home = codex::home::resolve_codex_home(settings.codex_home.as_deref())?;
+        codex_config::write_feature_enabled(&home, feature_key.as_str(), enabled)
     }
 
     async fn get_agents_settings(&self) -> Result<agents_config_core::AgentsSettingsDto, String> {
-        agents_config_core::get_agents_settings_core()
+        let app_settings = self.app_settings.lock().await.clone();
+        agents_config_core::get_agents_settings_core(&app_settings)
     }
 
     async fn set_agents_core_settings(
         &self,
         input: agents_config_core::SetAgentsCoreInput,
     ) -> Result<agents_config_core::AgentsSettingsDto, String> {
-        agents_config_core::set_agents_core_settings_core(input)
+        let app_settings = self.app_settings.lock().await.clone();
+        agents_config_core::set_agents_core_settings_core(&app_settings, input)
     }
 
     async fn create_agent(
         &self,
         input: agents_config_core::CreateAgentInput,
     ) -> Result<agents_config_core::AgentsSettingsDto, String> {
-        agents_config_core::create_agent_core(input)
+        let app_settings = self.app_settings.lock().await.clone();
+        agents_config_core::create_agent_core(&app_settings, input)
     }
 
     async fn update_agent(
         &self,
         input: agents_config_core::UpdateAgentInput,
     ) -> Result<agents_config_core::AgentsSettingsDto, String> {
-        agents_config_core::update_agent_core(input)
+        let app_settings = self.app_settings.lock().await.clone();
+        agents_config_core::update_agent_core(&app_settings, input)
     }
 
     async fn delete_agent(
         &self,
         input: agents_config_core::DeleteAgentInput,
     ) -> Result<agents_config_core::AgentsSettingsDto, String> {
-        agents_config_core::delete_agent_core(input)
+        let app_settings = self.app_settings.lock().await.clone();
+        agents_config_core::delete_agent_core(&app_settings, input)
     }
 
     async fn read_agent_config_toml(&self, agent_name: String) -> Result<String, String> {
-        agents_config_core::read_agent_config_toml_core(agent_name.as_str())
+        let app_settings = self.app_settings.lock().await.clone();
+        agents_config_core::read_agent_config_toml_core(&app_settings, agent_name.as_str())
     }
 
     async fn write_agent_config_toml(
@@ -637,7 +655,12 @@ impl DaemonState {
         agent_name: String,
         content: String,
     ) -> Result<(), String> {
-        agents_config_core::write_agent_config_toml_core(agent_name.as_str(), content.as_str())
+        let app_settings = self.app_settings.lock().await.clone();
+        agents_config_core::write_agent_config_toml_core(
+            &app_settings,
+            agent_name.as_str(),
+            content.as_str(),
+        )
     }
 
     async fn list_workspace_files(&self, workspace_id: String) -> Result<Vec<String>, String> {
@@ -667,7 +690,14 @@ impl DaemonState {
         kind: file_policy::FileKind,
         workspace_id: Option<String>,
     ) -> Result<file_io::TextFileResponse, String> {
-        files_core::file_read_core(&self.workspaces, scope, kind, workspace_id).await
+        files_core::file_read_core(
+            &self.workspaces,
+            &self.app_settings,
+            scope,
+            kind,
+            workspace_id,
+        )
+        .await
     }
 
     async fn file_write(
@@ -677,7 +707,15 @@ impl DaemonState {
         workspace_id: Option<String>,
         content: String,
     ) -> Result<(), String> {
-        files_core::file_write_core(&self.workspaces, scope, kind, workspace_id, content).await
+        files_core::file_write_core(
+            &self.workspaces,
+            &self.app_settings,
+            scope,
+            kind,
+            workspace_id,
+            content,
+        )
+        .await
     }
 
     async fn start_thread(&self, workspace_id: String) -> Result<Value, String> {
@@ -692,11 +730,7 @@ impl DaemonState {
         codex_core::resume_thread_core(&self.sessions, workspace_id, thread_id).await
     }
 
-    async fn read_thread(
-        &self,
-        workspace_id: String,
-        thread_id: String,
-    ) -> Result<Value, String> {
+    async fn read_thread(&self, workspace_id: String, thread_id: String) -> Result<Value, String> {
         codex_core::read_thread_core(&self.sessions, workspace_id, thread_id).await
     }
 
@@ -765,8 +799,7 @@ impl DaemonState {
         limit: Option<u32>,
         sort_key: Option<String>,
     ) -> Result<Value, String> {
-        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key)
-            .await
+        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key).await
     }
 
     async fn list_mcp_server_status(
@@ -897,7 +930,13 @@ impl DaemonState {
     }
 
     async fn account_read(&self, workspace_id: String) -> Result<Value, String> {
-        codex_core::account_read_core(&self.sessions, &self.workspaces, workspace_id).await
+        codex_core::account_read_core(
+            &self.app_settings,
+            &self.sessions,
+            &self.workspaces,
+            workspace_id,
+        )
+        .await
     }
 
     async fn codex_login(&self, workspace_id: String) -> Result<Value, String> {
@@ -944,11 +983,17 @@ impl DaemonState {
         workspace_id: String,
         command: Vec<String>,
     ) -> Result<Value, String> {
-        codex_core::remember_approval_rule_core(&self.workspaces, workspace_id, command).await
+        codex_core::remember_approval_rule_core(
+            &self.app_settings,
+            &self.workspaces,
+            workspace_id,
+            command,
+        )
+        .await
     }
 
     async fn get_config_model(&self, workspace_id: String) -> Result<Value, String> {
-        codex_core::get_config_model_core(&self.workspaces, workspace_id).await
+        codex_core::get_config_model_core(&self.app_settings, &self.workspaces, workspace_id).await
     }
 
     async fn add_clone(
@@ -1177,7 +1222,14 @@ impl DaemonState {
     }
 
     async fn prompts_list(&self, workspace_id: String) -> Result<Vec<CustomPromptEntry>, String> {
-        prompts_core::prompts_list_core(&self.workspaces, &self.settings_path, workspace_id).await
+        let app_settings = self.app_settings.lock().await.clone();
+        prompts_core::prompts_list_core(
+            &app_settings,
+            &self.workspaces,
+            &self.settings_path,
+            workspace_id,
+        )
+        .await
     }
 
     async fn prompts_workspace_dir(&self, workspace_id: String) -> Result<String, String> {
@@ -1190,7 +1242,8 @@ impl DaemonState {
     }
 
     async fn prompts_global_dir(&self, workspace_id: String) -> Result<String, String> {
-        prompts_core::prompts_global_dir_core(&self.workspaces, workspace_id).await
+        let app_settings = self.app_settings.lock().await.clone();
+        prompts_core::prompts_global_dir_core(&app_settings, &self.workspaces, workspace_id).await
     }
 
     async fn prompts_create(
@@ -1202,7 +1255,9 @@ impl DaemonState {
         argument_hint: Option<String>,
         content: String,
     ) -> Result<CustomPromptEntry, String> {
+        let app_settings = self.app_settings.lock().await.clone();
         prompts_core::prompts_create_core(
+            &app_settings,
             &self.workspaces,
             &self.settings_path,
             workspace_id,
@@ -1224,7 +1279,9 @@ impl DaemonState {
         argument_hint: Option<String>,
         content: String,
     ) -> Result<CustomPromptEntry, String> {
+        let app_settings = self.app_settings.lock().await.clone();
         prompts_core::prompts_update_core(
+            &app_settings,
             &self.workspaces,
             &self.settings_path,
             workspace_id,
@@ -1238,8 +1295,15 @@ impl DaemonState {
     }
 
     async fn prompts_delete(&self, workspace_id: String, path: String) -> Result<(), String> {
-        prompts_core::prompts_delete_core(&self.workspaces, &self.settings_path, workspace_id, path)
-            .await
+        let app_settings = self.app_settings.lock().await.clone();
+        prompts_core::prompts_delete_core(
+            &app_settings,
+            &self.workspaces,
+            &self.settings_path,
+            workspace_id,
+            path,
+        )
+        .await
     }
 
     async fn prompts_move(
@@ -1248,7 +1312,9 @@ impl DaemonState {
         path: String,
         scope: String,
     ) -> Result<CustomPromptEntry, String> {
+        let app_settings = self.app_settings.lock().await.clone();
         prompts_core::prompts_move_core(
+            &app_settings,
             &self.workspaces,
             &self.settings_path,
             workspace_id,
@@ -1334,7 +1400,14 @@ impl DaemonState {
         days: Option<u32>,
         workspace_path: Option<String>,
     ) -> Result<LocalUsageSnapshot, String> {
-        local_usage_core::local_usage_snapshot_core(&self.workspaces, days, workspace_path).await
+        let app_settings = self.app_settings.lock().await.clone();
+        local_usage_core::local_usage_snapshot_core(
+            &app_settings,
+            &self.workspaces,
+            days,
+            workspace_path,
+        )
+        .await
     }
 
     async fn menu_set_accelerators(&self, _updates: Vec<Value>) -> Result<(), String> {

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::path::PathBuf;
-use std::sync::OnceLock;
 use std::sync::Arc;
+use std::sync::OnceLock;
 
 use tokio::sync::Mutex;
 
@@ -16,7 +16,7 @@ use super::helpers::resolve_entry_and_parent;
 
 static CONNECT_WORKSPACE_SPAWN_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
-pub(super) fn workspace_session_spawn_lock() -> &'static Mutex<()> {
+pub(crate) fn workspace_session_spawn_lock() -> &'static Mutex<()> {
     CONNECT_WORKSPACE_SPAWN_LOCK.get_or_init(|| Mutex::new(()))
 }
 
@@ -64,6 +64,18 @@ where
 {
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
     let _spawn_guard = workspace_session_spawn_lock().lock().await;
+    let (default_bin, codex_args, codex_home) = {
+        let settings = app_settings.lock().await;
+        (
+            settings.codex_bin.clone(),
+            resolve_workspace_codex_args(&entry, parent_entry.as_ref(), Some(&settings)),
+            Some(resolve_workspace_codex_home(
+                &entry,
+                parent_entry.as_ref(),
+                &settings,
+            )?),
+        )
+    };
     if let Some(existing_for_entry) = {
         let sessions = sessions.lock().await;
         sessions.get(&entry.id).cloned()
@@ -83,20 +95,37 @@ where
             .insert(entry.id.clone(), existing_session);
         return Ok(());
     }
-    let (default_bin, codex_args) = {
-        let settings = app_settings.lock().await;
-        (
-            settings.codex_bin.clone(),
-            resolve_workspace_codex_args(&entry, parent_entry.as_ref(), Some(&settings)),
-        )
-    };
-    let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
     let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
     session
         .register_workspace_with_path(&entry.id, Some(&entry.path))
         .await;
     sessions.lock().await.insert(entry.id, session);
     Ok(())
+}
+
+/// Disconnect all workspaces sharing the runtime. The caller must hold
+/// `workspace_session_spawn_lock` while changing settings and disconnecting so a
+/// concurrent workspace connection cannot retain the previous Codex home.
+pub(crate) async fn disconnect_all_sessions_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+) {
+    let existing = {
+        let mut sessions = sessions.lock().await;
+        let mut unique = Vec::<Arc<WorkspaceSession>>::new();
+        for (_, session) in sessions.drain() {
+            if !unique
+                .iter()
+                .any(|candidate| Arc::ptr_eq(candidate, &session))
+            {
+                unique.push(session);
+            }
+        }
+        unique
+    };
+    for session in existing {
+        let mut child = session.child.lock().await;
+        kill_child_process_tree(&mut child).await;
+    }
 }
 
 pub(super) async fn kill_session_by_id(
@@ -248,6 +277,77 @@ mod tests {
             assert_eq!(spawn_calls.load(Ordering::SeqCst), 1);
             assert!(sessions.lock().await.contains_key(&entry.id));
             kill_session_by_id(&sessions, &entry.id).await;
+        });
+    }
+    #[test]
+    fn connect_workspace_passes_explicit_home_to_spawn() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let entry = make_workspace_entry("explicit-home");
+            let workspaces = Mutex::new(HashMap::from([(entry.id.clone(), entry.clone())]));
+            let sessions = Mutex::new(HashMap::new());
+            let home = std::env::temp_dir().canonicalize().unwrap();
+            let app_settings = Mutex::new(AppSettings {
+                codex_home: Some(home.to_string_lossy().into_owned()),
+                ..AppSettings::default()
+            });
+            let expected_home = home.clone();
+            connect_workspace_core(
+                entry.id.clone(),
+                &workspaces,
+                &sessions,
+                &app_settings,
+                move |entry, _, _, codex_home| {
+                    assert_eq!(codex_home.as_ref(), Some(&expected_home));
+                    async move { Ok(make_session(entry)) }
+                },
+            )
+            .await
+            .unwrap();
+            kill_session_by_id(&sessions, &entry.id).await;
+        });
+    }
+
+    #[test]
+    fn unavailable_explicit_home_rejects_existing_shared_session() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let entry = make_workspace_entry("unavailable-home");
+            let workspaces = Mutex::new(HashMap::from([(entry.id.clone(), entry.clone())]));
+            let sessions = Mutex::new(HashMap::from([(
+                entry.id.clone(),
+                make_session(entry.clone()),
+            )]));
+            let missing = std::env::temp_dir()
+                .join(format!("codex-monitor-missing-{}", uuid::Uuid::new_v4()));
+            let app_settings = Mutex::new(AppSettings {
+                codex_home: Some(missing.to_string_lossy().into_owned()),
+                ..AppSettings::default()
+            });
+            let result = connect_workspace_core(
+                entry.id.clone(),
+                &workspaces,
+                &sessions,
+                &app_settings,
+                |_, _, _, _| async { Err("must never spawn".to_string()) },
+            )
+            .await;
+            assert!(result.unwrap_err().contains("unavailable"));
+            kill_session_by_id(&sessions, &entry.id).await;
+        });
+    }
+
+    #[test]
+    fn disconnect_all_sessions_clears_shared_runtime_references() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let entry = make_workspace_entry("disconnect-home");
+            let session = make_session(entry);
+            let sessions = Mutex::new(HashMap::from([
+                ("workspace-one".to_string(), Arc::clone(&session)),
+                ("workspace-two".to_string(), Arc::clone(&session)),
+            ]));
+            let _guard = workspace_session_spawn_lock().lock().await;
+            disconnect_all_sessions_core(&sessions).await;
+            assert!(sessions.lock().await.is_empty());
+            assert!(!session_process_is_alive(&session).await);
         });
     }
 }

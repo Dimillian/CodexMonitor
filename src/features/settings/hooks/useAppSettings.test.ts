@@ -49,6 +49,8 @@ describe("useAppSettings", () => {
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_MAX);
     expect(result.current.settings.theme).toBe("system");
+    expect(result.current.settings.codexHome).toBeNull();
+    expect(result.current.settings.followUpMessageBehavior).toBe("queue");
     expect(result.current.settings.uiFontFamily).toContain("system-ui");
     expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.codeFontSize).toBe(16);
@@ -71,6 +73,13 @@ describe("useAppSettings", () => {
     expect(result.current.settings.backendMode).toBe("local");
     expect(result.current.settings.dictationModelId).toBe("base");
     expect(result.current.settings.interruptShortcut).toBeTruthy();
+  });
+
+  it("normalizes and preserves an explicit Codex Home on load", async () => {
+    getAppSettingsMock.mockResolvedValue({ codexHome: "  /selected/codex-home  " } as AppSettings);
+    const { result } = renderHook(() => useAppSettings());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.settings.codexHome).toBe("/selected/codex-home");
   });
 
   it("persists settings via updateAppSettings and updates local state", async () => {
