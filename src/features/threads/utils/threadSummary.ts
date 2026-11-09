@@ -49,9 +49,10 @@ export function buildThreadSummaryFromThread({
   const preview = asString(thread.preview ?? "").trim();
   const customName = getCustomName?.(workspaceId, id);
   const fallbackName = `Agent ${fallbackIndex + 1}`;
+  const serverName = asString(thread.name ?? thread.title ?? "").trim();
   const name = customName
     ? customName
-    : clampThreadName(preview) ?? fallbackName;
+    : clampThreadName(serverName || preview) ?? fallbackName;
   const metadata = extractThreadCodexMetadata(thread);
   if (shouldHideSubagentThreadFromSidebar(thread.source)) {
     return null;
